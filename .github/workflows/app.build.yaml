@@ -1,0 +1,34 @@
+name: "Build app"
+
+on:
+  workflow_dispatch:
+
+
+run-name: app.build [${{ github.ref_name }}] @${{ github.actor }}
+
+env:
+  REGISTRY_OWNER: kokuryio
+  REGISTRY_URL: ghcr.io
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Github Container Registry
+        shell: bash
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build Docker image
+        shell: bash
+        run: |
+          cd "${{ github.workspace }}"
+          IMAGE_TAG=$(echo ${{ github.ref_name }} | tr '[:upper:]' '[:lower:]' | sed 's/\//./g')
+          docker build -t ${{ env.REGISTRY_URL }}/${{ env.REGISTRY_OWNER }}/${{ env.IMAGE_TAG }}:latest
+
+      - name: Push image to registry
+        shell: bash
+        run: |
+          docker push ${{ env.REGISTRY_URL }}/${{ env.REGISTRY_OWNER }}/${{ env.IMAGE_TAG }}:latest
