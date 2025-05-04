@@ -5,6 +5,7 @@ RUN go mod download
 COPY cmd/ ./cmd
 COPY internal/ ./internal
 RUN go build -o server ./cmd/server/main.go
+RUN chmod +x server
 
 FROM node:23.11.0-alpine3.21 AS npm-install
 WORKDIR /build
