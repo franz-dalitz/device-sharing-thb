@@ -18,8 +18,8 @@ func Server() *gin.Engine {
 	server.Static("/static/htmx", "web/node_modules/htmx.org/dist")
 	server.Static("/static/bootstrap", "web/node_modules/bootstrap/dist")
 
-	server.GET("/pages/*page", func(c *gin.Context) {
-		page := c.Param("page")
+	server.GET("/:page", func(c *gin.Context) {
+		page := strings.TrimPrefix(c.Param("page"), "/")
 		page = page + ".tmpl"
 
 		c.HTML(http.StatusOK, page, nil)
