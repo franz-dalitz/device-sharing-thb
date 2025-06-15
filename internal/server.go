@@ -146,16 +146,9 @@ func deleteDevice(c *gin.Context) {
 		return
 	}
 
-	ix := slices.IndexFunc(Db.Devices, func(device *Device) bool {
+	Db.Devices = slices.DeleteFunc(Db.Devices, func(device *Device) bool {
 		return device.ID == id
 	})
-
-	if ix == -1 {
-		slog.Error("trying to delete nonexistent device")
-		return
-	}
-
-	Db.Devices = slices.Delete(Db.Devices, ix, ix)
 
 	for _, user := range Db.Users {
 		user.Liked = slices.DeleteFunc(user.Liked, func(dbId int) bool {
