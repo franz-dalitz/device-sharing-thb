@@ -5,7 +5,11 @@ import (
 )
 
 func main() {
+    port := os.Getenv("PORT")
+    if port == "" {
+        port = "8080" // fallback for local development
+    }
 	engine := internal.Server()
 	internal.Db.Mock()
-	engine.Run(":8080")
+	engine.Run(":" + port)
 }
