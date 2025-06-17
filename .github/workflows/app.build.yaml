@@ -33,6 +33,9 @@ jobs:
         run: |
           docker push ${{ env.REGISTRY_URL }}/${{ env.REGISTRY_OWNER }}/${{ env.IMAGE_TAG }}:latest
 
+      - name: Wait for registry consistency
+        run: sleep 10
+
       - name: Trigger Azure App Service Webhook
         run: |
           curl -X POST \
