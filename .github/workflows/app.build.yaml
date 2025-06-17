@@ -36,8 +36,7 @@ jobs:
       - name: Wait for registry consistency
         run: sleep 10
 
-      - name: Trigger Azure App Service Webhook
+      - name: Trigger Azure Webhook with PowerShell
+        shell: pwsh
         run: |
-          curl -v -X POST \
-            -H "Content-Length: 0" \
-            "${{ secrets.AZURE_WEBHOOK_URL }}"
+          Invoke-RestMethod -Method Post -Uri "${{ secrets.AZURE_WEBHOOK_URL }}"
