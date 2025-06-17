@@ -2,6 +2,8 @@ package main
 
 import (
 	"github.com/franz-dalitz/device-sharing-thb/internal"
+	"log"
+	"os"
 )
 
 func main() {
