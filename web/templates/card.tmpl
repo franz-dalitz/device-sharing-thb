@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="/static/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <h1 class="text-center">DeviceSharing@THB</h1>
+    <p class="text-center">{{ .dynamic }}</p>
+
+    <!-- Example Device Card -->
+      <div class="col-md-6 col-lg-4" >
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title">3D Printer - Prusa i3</h5>
+            <p class="card-description">Suitable for student projects and prototypes.</p>
+            <p class="card-category">Category: Electronics</p>
+            <p class="card-location">Location: THB Building B, Room 21</p>
+            <a href="/device/1" class="btn btn-sm btn-primary">View Details...</a>
+          </div>
+        </div>
+      </div>
+    
+    <script src="/static/htmx/htmx.min.js"></script>
+    <script src="/static/bootstrap/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
