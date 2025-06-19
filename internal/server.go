@@ -13,33 +13,49 @@ import (
 func Server() *gin.Engine {
 	server := gin.Default()
 
-	// page routing
-	server.LoadHTMLGlob("web/templates/*")
+	// static content and page routing
 	server.Static("/static/htmx", "web/node_modules/htmx.org/dist")
 	server.Static("/static/bootstrap", "web/node_modules/bootstrap/dist")
+
+	server.LoadHTMLGlob("web/**/*.tmpl")
 
 	server.GET("/:page", func(c *gin.Context) {
 		page := strings.TrimPrefix(c.Param("page"), "/")
 		page = page + ".tmpl"
-
 		c.HTML(http.StatusOK, page, nil)
 	})
 
-	// API
-	server.GET("/api/users", listUsers)
-	server.GET("/api/users/:id", getUser)
-	server.GET("/api/devices", listDevices)
-	server.GET("/api/devices/query", queryDevices)
+	// // API
+	// server.GET("/api/users", listUsers)
+	// server.GET("/api/users/:id", getUser)
+	// server.GET("/api/devices", listDevices)
+	// server.GET("/api/devices/query", queryDevices)
 	server.GET("/api/devices/:id", getDevice)
-	server.POST("/api/devices", createDevice)
-	server.DELETE("/api/devices/:id", deleteDevice)
-	server.PUT("/api/devices", updateDevice)
-	server.GET("/api/categories", listCategories)
-	server.PUT("/api/like/:user/:device", toggleLike)
-	server.GET("/api/chats/u/:user", listChats)
-	server.GET("/api/chats/:id", getChat)
-	server.POST("/api/chats", createChat)
-	server.POST("/api/chats/:id/messages", createMessage)
+	// server.POST("/api/devices", createDevice)
+	// server.DELETE("/api/devices/:id", deleteDevice)
+	// server.PUT("/api/devices", updateDevice)
+	// server.GET("/api/categories", listCategories)
+	// server.PUT("/api/like/:user/:device", toggleLike)
+	// server.GET("/api/chats/u/:user", listChats)
+	// server.GET("/api/chats/:id", getChat)
+	// server.POST("/api/chats", createChat)
+	// server.POST("/api/chats/:id/messages", createMessage)
+
+	server.GET("/api/search", func(c *gin.Context) {
+		search := c.Query("search")
+
+		devices := []*Device{}
+
+		for _, device := range Db.Devices {
+			if strings.Contains(strings.ReplaceAll(strings.ToLower(device.Name), " ", ""), strings.ToLower(search)) {
+				devices = append(devices, device)
+			}
+		}
+
+		c.HTML(http.StatusOK, "device-cards", gin.H{
+			"Devices": devices,
+		})
+	})
 
 	return server
 }

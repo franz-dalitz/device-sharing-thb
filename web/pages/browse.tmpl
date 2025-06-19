@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="/static/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <title>DeviceSharing@THB</title>
+</head>
+<body>
+
+  {{ template "head" }}
+
+  <!-- Main Content -->
+  <div class="container py-4">
+
+    <!-- Search -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <input
+          name="search"
+          type="text"
+          placeholder="Search"
+          class="form-control"
+          hx-get="/api/search"
+          hx-trigger="load, keyup changed delay:300ms"
+          hx-target="#device-list"
+          hx-indicator="#loading-indicator"
+        />
+
+        <div
+          id="loading-indicator"
+          class="mt-1 text-muted"
+          style="display: none;"
+        >
+          Loading...
+        </div>
+      </div>
+    </div>
+
+    <!-- Device List -->
+    <div id="device-list" class="row g-4"></div>
+  </div>
+
+  {{ template "navbar" }}
+
+  <!-- HTMX Loading Handling -->
+  <script>
+    document.body.addEventListener('htmx:indicatorStart', function (evt) {
+      document.getElementById('loading-indicator').style.display = 'block';
+    });
+    document.body.addEventListener('htmx:indicatorStop', function (evt) {
+      document.getElementById('loading-indicator').style.display = 'none';
+    });
+  </script>
+
+  <script src="/static/htmx/htmx.min.js"></script>
+  <script src="/static/bootstrap/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
