@@ -19,5 +19,7 @@ func (db *Database) Mock() {
 		NewDevice(db.Users[0].ID, "Altes Smartphone", Smartphone, "", ""),
 		NewDevice(db.Users[1].ID, "Neuer Laptop", Laptop, "", ""),
 		NewDevice(db.Users[2].ID, "Altes Kabel", Cable, "", ""),
+		NewDevice(db.Users[1].ID, "Neues Tablet", Tablet, "", ""),
+		NewDevice(db.Users[2].ID, "Neues Kabel", Cable, "", ""),
 	)
 }
