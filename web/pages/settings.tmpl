@@ -26,8 +26,8 @@
               <input type="email"
                      class="form-control"
                      id="email"
-                     value="moghtaderfar@gmail.com"
-                     readonly>
+                     value="moghtaderfar@gmail.com" >
+                     {{/* readonly> */}}
             </div>
 
             <!-- Password (masked) -->
@@ -36,8 +36,8 @@
               <input type="password"
                      class="form-control"
                      id="password"
-                     value="**********"
-                     readonly>
+                     value="**********">
+                     {{/* readonly> */}}
             </div>
 
             <!-- Buttons -->
@@ -60,6 +60,8 @@
       </div>
     </div>
   </div>
+
+{{ template "navbar" }}
 
   <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
