@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>My Account - Settings</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link
-    href="/static/bootstrap/css/bootstrap.min.css"
-    rel="stylesheet">
+  <link href="/static/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
   <script src="/static/htmx/htmx.min.js"></script>
 </head>
+
 <body class="bg-light">
 
   <div class="container py-5">
@@ -23,33 +24,31 @@
             <!-- Email -->
             <div class="mb-3">
               <label for="email" class="form-label fw-semibold">Email</label>
-              <input type="email"
-                     class="form-control"
-                     id="email"
-                     value="moghtaderfar@gmail.com" >
-                     {{/* readonly> */}}
+              <input type="email" class="form-control" id="email" hx-get="/api/mail" hx-swap="outerHTML"
+              hx-trigger="load" hx-vals="js:{userID: sessionStorage.getItem('userID')}">
             </div>
 
             <!-- Password (masked) -->
             <div class="mb-3">
               <label for="password" class="form-label fw-semibold">Password</label>
-              <input type="password"
-                     class="form-control"
-                     id="password"
-                     value="**********">
-                     {{/* readonly> */}}
+              <input type="password" class="form-control" id="password" value="****************">
             </div>
 
             <!-- Buttons -->
             <div class="d-flex justify-content-between">
-              <button class="btn btn-outline-danger"
-                      hx-post="/logout"
-                      hx-swap="none">
+              <button class="btn btn-danger" hx-post="/logout" hx-swap="none">
                 Logout
               </button>
-              <button class="btn btn-primary"
-                      hx-post="/update-account"
-                      hx-swap="none">
+
+              <div class="mb-3" hx-get="/api/useropts/" hx-swap="innterHtml" hx-trigger="load" hx-target="#username"
+                hx-vals="js:{userID: sessionStorage.getItem('userID')}">
+                <label for="username" class="form-label fw-semibold">Users</label>
+                <select id="username" name="id" class="form-select" hx-post="/api/userselect" hx-trigger="change"
+                  hx-swap="none" onchange="sessionStorage.setItem('userID', this.value)" required>
+                </select>
+              </div>
+
+              <button class="btn btn-danger" hx-post="/update-account" hx-swap="none">
                 Update
               </button>
             </div>
@@ -61,9 +60,9 @@
     </div>
   </div>
 
-{{ template "navbar" }}
+  {{ template "navbar" }}
 
-  <script
-    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>
