@@ -70,6 +70,8 @@ func Server() *gin.Engine {
 func getUserOpts(c *gin.Context) {
 	id, err := strconv.Atoi(c.Query("userID"))
 	if err != nil {
+		slog.Error(err.Error(), "err", err)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
@@ -96,6 +98,8 @@ func getUserOpts(c *gin.Context) {
 func loadMail(c *gin.Context) {
 	id, err := strconv.Atoi(c.Query("userID"))
 	if err != nil {
+		slog.Error(err.Error(), "err", err)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
