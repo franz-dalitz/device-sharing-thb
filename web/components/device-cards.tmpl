@@ -1,0 +1,15 @@
+{{ define "device-cards" }}
+{{ range .Devices }}
+<div class="col-md-6 col-lg-4">
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h5 class="card-title">{{ .Name }}</h5>
+      <p class="card-text">{{ .Description }}</p>
+      <p class="mb-1 text-muted">{{ .Category }}</p>
+      <p class="mb-1 text-muted">{{ .Location }}</p>
+      <a href="/api/devices/{{ .ID }}" class="btn btn-sm btn-primary">View Details...</a>
+    </div>
+  </div>
+</div>
+{{ end }}
+{{ end }}

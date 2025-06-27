@@ -1,0 +1,19 @@
+<!-- Chat with Andrew -->
+<div class="card-body">
+  <h5 class="card-title">Andrew Parker</h5>
+  
+  <!-- Chat messages -->
+  <div class="mb-3">
+    <div class="bg-light rounded p-2 mb-2">What is the most popular meal in Japan? <span class="text-muted small">11:45</span></div>
+    <div class="bg-light rounded p-2 mb-2">Do you like it? <span class="text-muted small">11:45</span></div>
+    <div class="bg-light rounded p-2 mb-2">It’s morning in Tokyo <span class="text-muted small">11:43</span></div>
+  </div>
+
+  <!-- Send message -->
+  <form hx-post="/chat/martha/send" hx-target="#chat-content" hx-swap="innerHTML">
+    <div class="input-group">
+      <input type="text" name="message" class="form-control" placeholder="Message..." required>
+      <button class="btn btn-primary" type="submit">Send</button>
+    </div>
+  </form>
+</div>
