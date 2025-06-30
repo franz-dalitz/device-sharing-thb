@@ -17,6 +17,6 @@ FROM alpine:3.21.3
 WORKDIR /device-sharing
 COPY --from=go-build /build/server ./server
 COPY --from=npm-install /build/node_modules ./web/node_modules
-COPY web/templates ./web/templates
+COPY web ./web
 EXPOSE 8080
 CMD ["/device-sharing/server"]
