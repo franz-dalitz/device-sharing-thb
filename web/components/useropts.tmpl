@@ -1,0 +1,3 @@
+{{ range .Users }}
+<option value="{{ .ID }}" {{ if eq .ID $.Selected}}selected{{ end }}>{{ .Name }}</option>
+{{ end }}

@@ -1,6 +1,7 @@
 {
     "dependencies": {
         "bootstrap": "^5.3.5",
+        "bootstrap-icons": "^1.13.1",
         "htmx.org": "^1.9.12"
     }
 }
