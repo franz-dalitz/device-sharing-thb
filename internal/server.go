@@ -64,19 +64,10 @@ func Server() *gin.Engine {
 }
 
 func sendNotification(c *gin.Context) {
-	tmpl, err := template.ParseFiles("web/components/toast.tmpl")
-	if err != nil {
-		slog.Error(err.Error(), "err", err)
-		return
-	}
-
-	var event bytes.Buffer
-	tmpl.Execute(&event, notifications.Event{
+	hub.Deliver <- &notifications.Event{
 		Recipient: 0,
-		Content:   "some event message",
-	})
-
-	hub.Deliver <- content.Bytes()
+		Content:   "some message",
+	}
 }
 
 func registerClient(c *gin.Context) {

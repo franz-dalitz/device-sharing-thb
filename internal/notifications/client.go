@@ -1,6 +1,13 @@
 package notifications
 
-import "github.com/gorilla/websocket"
+import (
+	"bytes"
+	"html/template"
+	"log/slog"
+	"time"
+
+	"github.com/gorilla/websocket"
+)
 
 type Client struct {
 	Hub    *Hub
@@ -32,9 +39,20 @@ func (c *Client) EventPump() {
 			return
 		}
 
-		w.Write([]byte(event.Content))
+		toast, err := template.ParseFiles("web/components/toast.tmpl")
+		if err != nil {
+			slog.Error(err.Error(), "err", err)
+			return
+		}
+
+		var msg bytes.Buffer
+		toast.Execute(&msg, event.Content)
+
+		w.Write(msg.Bytes())
 		if err := w.Close(); err != nil {
 			return
 		}
+
+		time.Sleep(5 * time.Second)
 	}
 }
