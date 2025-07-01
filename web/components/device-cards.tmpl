@@ -7,7 +7,17 @@
       <p class="card-text">{{ .Description }}</p>
       <p class="mb-1 text-muted">{{ .Category }}</p>
       <p class="mb-1 text-muted">{{ .Location }}</p>
-      <a href="/api/devices/{{ .ID }}" class="btn btn-sm btn-primary">View Details...</a>
+      {{/* <a href="collapseExample" class="btn btn-sm btn-primary" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="collapseExample" >Details</a> */}}
+      <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ .ID }}" aria-expanded="false" aria-controls="collapseExample">
+      Details per Button
+      </button>
+
+      <!-- Collapsible Content -->
+      <div class="collapse" id="collapse-{{ .ID }}">
+        <div class="card card-body">
+         Some placeholder content for the collapse component.
+        </div>
+      </div>
     </div>
   </div>
 </div>

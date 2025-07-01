@@ -1,11 +1,15 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="/static/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
+  <script src="/static/htmx/htmx.min.js"></script>
   <title>DeviceSharing@THB</title>
 </head>
+
 <body>
 
   {{ template "head" }}
@@ -13,29 +17,23 @@
   <!-- Main Content -->
   <div class="container py-4">
 
-    <!-- Search -->
-    <div class="row mb-4">
-      <div class="col-12">
-        <input
-          name="search"
-          type="text"
-          placeholder="Search"
-          class="form-control"
-          hx-get="/api/search"
-          hx-trigger="load, keyup changed delay:200ms"
-          hx-target="#device-list"
-          hx-indicator="#loading-indicator"
-        />
+    <form onsubmit="return false;" action="" hx-get="/api/search" hx-trigger="load, keyup changed delay:200ms from:#search, change from:#category" hx-target="#device-list"
+      hx-swap="innerHTML" hx-vals='js:{
+              "userID": sessionStorage.getItem("userID")
+            }'>
 
-        <div
-          id="loading-indicator"
-          class="mt-1 text-muted"
-          style="display: none;"
-        >
-          Loading...
+      <!-- Search -->
+      <div class="row mb-4">
+        <div class="col-12">
+          <input name="search" id="search" class="form-control" type="text" placeholder="Suche" />
         </div>
-      </div>
-    </div>
+
+        <select class="form-select form-select-sm" name="category" id="category">
+          <option id="any" hx-get="/api/component/category-list" hx-trigger="load" hx-swap="afterend" hx-target="#any">
+            Any</option>
+        </select>
+
+    </form>
 
     <!-- Device List -->
     <div id="device-list" class="row g-4"></div>
@@ -43,17 +41,6 @@
 
   {{ template "navbar" }}
 
-  <!-- HTMX Loading Handling -->
-  <script>
-    document.body.addEventListener('htmx:indicatorStart', function (evt) {
-      document.getElementById('loading-indicator').style.display = 'block';
-    });
-    document.body.addEventListener('htmx:indicatorStop', function (evt) {
-      document.getElementById('loading-indicator').style.display = 'none';
-    });
-  </script>
-
-  <script src="/static/htmx/htmx.min.js"></script>
-  <script src="/static/bootstrap/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>

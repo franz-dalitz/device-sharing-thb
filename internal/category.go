@@ -21,6 +21,7 @@ var Categories = []string{
 }
 
 func (cat Category) String() string {
+	cat = cat - 1
 	if cat < 0 || int(cat) > len(Categories) {
 		return "Unknown"
 	}

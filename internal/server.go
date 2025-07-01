@@ -9,7 +9,13 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/franz-dalitz/device-sharing-thb/internal/notifications"
 	"github.com/gin-gonic/gin"
+)
+
+var (
+	hub      = notifications.NewHub()
+	upgrader = notifications.DefaultUpgrader()
 )
 
 func Server() *gin.Engine {
@@ -44,27 +50,115 @@ func Server() *gin.Engine {
 	// server.POST("/api/chats", createChat)
 	// server.POST("/api/chats/:id/messages", createMessage)
 
-	// server.GET("/api/search", func(c *gin.Context) {
-	// 	search := c.Query("search")
+	server.POST("/api/notify", sendNotification)
+	server.GET("/ws", registerClient)
 
-	// 	devices := []*Device{}
-
-	// 	for _, device := range Db.Devices {
-	// 		if strings.Contains(strings.ReplaceAll(strings.ToLower(device.Name), " ", ""), strings.ToLower(search)) {
-	// 			devices = append(devices, device)
-	// 		}
-	// 	}
-
-	// 	c.HTML(http.StatusOK, "device-cards", gin.H{
-	// 		"Devices": devices,
-	// 	})
-	// })
+	server.GET("/api/search", search)
+	server.GET("/api/component/category-list", getCategoryList)
 
 	server.GET("/api/useropts", getUserOpts)
 	server.GET("/api/mail", loadMail)
 	server.POST("/api/userselect", selectUser)
 
 	return server
+}
+
+func sendNotification(c *gin.Context) {
+	tmpl, err := template.ParseFiles("web/components/toast.tmpl")
+	if err != nil {
+		slog.Error(err.Error(), "err", err)
+		return
+	}
+
+	var event bytes.Buffer
+	tmpl.Execute(&event, notifications.Event{
+		Recipient: 0,
+		Content:   "some event message",
+	})
+
+	hub.Deliver <- content.Bytes()
+}
+
+func registerClient(c *gin.Context) {
+	uid, err := strconv.Atoi(c.Query("userID"))
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+
+	client := notifications.NewClient(hub, conn, uid)
+	hub.Register <- client
+	go client.EventPump()
+}
+
+func getCategoryList(c *gin.Context) {
+	tmpl, err := template.ParseFiles("web/components/category-list.tmpl")
+	if err != nil {
+		slog.Error(err.Error(), "err", err)
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	var content bytes.Buffer
+	err = tmpl.Execute(&content, Categories)
+	if err != nil {
+		slog.Error(err.Error(), "err", err)
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	c.Data(http.StatusOK, "text/html", content.Bytes())
+}
+
+func search(c *gin.Context) {
+	search := c.Query("search")
+	category := c.Query("category")
+	notUser := c.Query("notUser")
+	onlyUser := c.Query("onlyUser")
+
+	devices := []*Device{}
+	for _, device := range Db.Devices {
+		if !strings.Contains(strings.ReplaceAll(strings.ToLower(device.Name), " ", ""), strings.ToLower(search)) {
+			continue
+		}
+
+		if category != "Any" && device.Category.String() != category {
+			continue
+		}
+
+		if notUser != "" {
+			nU, err := strconv.Atoi(notUser)
+			if err != nil {
+				slog.Error(err.Error())
+				return
+			}
+
+			if device.Owner == nU {
+				continue
+			}
+		} else if onlyUser != "" {
+			oU, err := strconv.Atoi(onlyUser)
+			if err != nil {
+				slog.Error(err.Error())
+				return
+			}
+
+			if device.Owner != oU {
+				continue
+			}
+		}
+
+		devices = append(devices, device)
+	}
+
+	c.HTML(http.StatusOK, "device-cards", gin.H{
+		"Devices": devices,
+	})
 }
 
 func getUserOpts(c *gin.Context) {

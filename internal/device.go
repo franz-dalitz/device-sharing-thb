@@ -13,6 +13,7 @@ type Device struct {
 	Location    string
 	Photo       image.Image `json:"-"`
 	ReservedBy  int
+	LikedBy     []int
 }
 
 func NewDevice(owner int, name string, cat Category, desc string, loc string) *Device {
@@ -23,7 +24,8 @@ func NewDevice(owner int, name string, cat Category, desc string, loc string) *D
 		cat,
 		desc,
 		loc,
-		image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{100, 100}}),
+		image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{0, 0}}),
 		-1,
+		make([]int, 0),
 	}
 }
