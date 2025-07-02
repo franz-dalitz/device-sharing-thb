@@ -44,11 +44,12 @@ func Server() *gin.Engine {
 	// server.DELETE("/api/devices/:id", deleteDevice)
 	// server.PUT("/api/devices", updateDevice)
 	// server.GET("/api/categories", listCategories)
-	// server.PUT("/api/like/:user/:device", toggleLike)
 	// server.GET("/api/chats/u/:user", listChats)
 	// server.GET("/api/chats/:id", getChat)
 	// server.POST("/api/chats", createChat)
 	// server.POST("/api/chats/:id/messages", createMessage)
+
+	server.PUT("/api/like/:user/:device", toggleLike)
 
 	server.POST("/api/notify", sendNotification)
 	server.GET("/ws", registerClient)
@@ -63,6 +64,47 @@ func Server() *gin.Engine {
 	go hub.Run()
 
 	return server
+}
+
+func toggleLike(c *gin.Context) {
+	uId, err := strconv.Atoi(c.Param("user"))
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+
+	dId, err := strconv.Atoi(c.Param("device"))
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+
+	uIx := slices.IndexFunc(Db.Users, func(dbUser *User) bool {
+		return dbUser.ID == uId
+	})
+
+	if uIx == -1 {
+		slog.Error("trying to toggle like with nonexistent user")
+		return
+	}
+
+	dIx := slices.IndexFunc(Db.Devices, func(dbDevice *Device) bool {
+		return dbDevice.ID == dId
+	})
+
+	if dIx == -1 {
+		slog.Error("trying to toggle like for nonexistent device")
+		return
+	}
+
+	user := Db.Users[uIx]
+	udIx := slices.Index(user.Liked, dId)
+
+	if udIx == -1 {
+		user.Liked = append(user.Liked, dId)
+	} else {
+		user.Liked = slices.Delete(user.Liked, udIx, udIx)
+	}
 }
 
 func sendNotification(c *gin.Context) {
