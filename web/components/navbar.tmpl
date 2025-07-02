@@ -6,12 +6,20 @@
 </script>
 
 <script src="/static/htmx/ext/ws.js"></script>
-<div hx-ext="ws" ws-connect="/ws" id="notifications"></div>
+<script src="/static/bootstrap/js/bootstrap.bundle.min.js"></script>
+<div hx-ext="ws" id="notify-connect"></div>
+<div id="notifications" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
 <script>
+    document.getElementById('notify-connect').setAttribute('ws-connect', '/ws?userID=' + sessionStorage.getItem('userID'));
+
     document.body.addEventListener('htmx:wsAfterMessage', function (event) {
         const newToast = document.getElementById("notifications").firstElementChild;
-        const realToast = new bootstrap.Toast(newToast)
-        realToast.show()
+        const realToast = new bootstrap.Toast(newToast);
+        realToast.show();
+
+        newToast.addEventListener('hidden.bs.toast', function () {
+            newToast.remove();
+        });
     });
 </script>
 

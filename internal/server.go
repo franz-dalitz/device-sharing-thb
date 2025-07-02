@@ -60,6 +60,8 @@ func Server() *gin.Engine {
 	server.GET("/api/mail", loadMail)
 	server.POST("/api/userselect", selectUser)
 
+	go hub.Run()
+
 	return server
 }
 
