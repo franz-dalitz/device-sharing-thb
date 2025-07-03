@@ -5,47 +5,46 @@
     }
 </script>
 
-<nav class="navbar navbar-expand-sm navbar-dark bg-danger fixed-bottom">
-    <div class="container-fluid justify-content-center text-cente">
+<script src="/static/htmx/ext/ws.js"></script>
+<script src="/static/bootstrap/js/bootstrap.bundle.min.js"></script>
+<div hx-ext="ws" id="notify-connect"></div>
+<div id="notifications" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
+<script>
+    document.getElementById('notify-connect').setAttribute('ws-connect', '/ws?userID=' + sessionStorage.getItem('userID'));
 
-            <!-- Icons -->
-            {{/* <ul class="navbar-nav d-flex flex-row me-1 align-items-center flex-grow-1">
-                <li class="nav-item me-3 me-lg-0">
-                    <a class="nav-link mx-1 text-black" href="/browse"><i class="bi bi-search"></i></a>
-                </li>
-                <li class="nav-item me-3 me-lg-0">
-                    <a class="nav-link mx-1 text-black" href="#"><i class="bi bi-wallet"></i></a>
-                </li>
-                <li class="nav-item me-3 me-lg-0">
-                    <a class="nav-link mx-1 text-black" href="/adddevice"><i class="bi bi-plus-circle"></i></a>
-                </li>
-                <li class="nav-item me-3 me-lg-0">
-                    <a class="nav-link mx-1 text-black" href="/chatsoverview"><i class="bi bi-chat-left-dots"></i></a>
-                </li>
-                </li>
-                <li class="nav-item me-3 me-lg-0">
-                    <a class="nav-link text-black" href="/settings"><i class="bi bi-gear-wide"></i></a>
-                </li>
-            </ul>   */}}
-            {{/* <ul class="navbar-nav d-flex flex-row me-1 align-items-center flex-grow-1"> */}}
-            <ul class="navbar-nav d-flex justify-content-center flex-row align-items-center "></ul>
-                <li class="nav-item">
-                    <a class="nav-link mx-1 text-black" href="/browse"><i class="bi bi-search"></i></a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link mx-1 text-black" href="#"><i class="bi bi-wallet"></i></a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link active mx-1 text-black" href="/adddevice"><i class="bi bi-plus-circle"></i></a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link mx-1 text-black" href="/chatsoverview"><i class="bi bi-chat-left-dots"></i></a>
-                </li>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-black" href="/settings"><i class="bi bi-gear-wide"></i></a>
-                </li>
-            </ul>    
+    document.body.addEventListener('htmx:wsAfterMessage', function (event) {
+        const newToast = document.getElementById("notifications").firstElementChild;
+        const realToast = new bootstrap.Toast(newToast);
+        realToast.show();
+
+        newToast.addEventListener('hidden.bs.toast', function () {
+            newToast.remove();
+        });
+    });
+</script>
+
+<nav class="navbar navbar-dark bg-danger fixed-bottom">
+    <div class="container-fluid d-flex justify-content-center">
+    
+        <!-- UL wird zentriert, Abstand per gap -->
+        <ul class="navbar-nav d-flex flex-row align-items-center gap-4">
+            <li class="nav-item">
+                <a class="nav-link text-black" href="/browse"><i class="bi bi-search fs-4"></i></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link text-black" href="#"><i class="bi bi-wallet fs-4"></i></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active text-black" href="/adddevice"><i class="bi bi-plus-circle fs-4"></i></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link text-black" href="/chatsoverview"><i class="bi bi-chat-left-dots fs-4"></i></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link text-black" href="/settings"><i class="bi bi-gear-wide fs-4"></i></a>
+            </li>
+        </ul>
     </div>
 </nav>
+
 {{ end }}

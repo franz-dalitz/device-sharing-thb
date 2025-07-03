@@ -9,7 +9,13 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/franz-dalitz/device-sharing-thb/internal/notifications"
 	"github.com/gin-gonic/gin"
+)
+
+var (
+	hub      = notifications.NewHub()
+	upgrader = notifications.DefaultUpgrader()
 )
 
 func Server() *gin.Engine {
@@ -19,6 +25,7 @@ func Server() *gin.Engine {
 	server.Static("/static/htmx", "web/node_modules/htmx.org/dist")
 	server.Static("/static/bootstrap", "web/node_modules/bootstrap/dist")
 	server.Static("/static/bootstrap-icons", "web/node_modules/bootstrap-icons/font")
+	server.Static("/static/thb.svg", "web/thb.svg")
 
 	server.LoadHTMLGlob("web/**/*.tmpl")
 
@@ -38,33 +45,161 @@ func Server() *gin.Engine {
 	// server.DELETE("/api/devices/:id", deleteDevice)
 	// server.PUT("/api/devices", updateDevice)
 	// server.GET("/api/categories", listCategories)
-	// server.PUT("/api/like/:user/:device", toggleLike)
 	// server.GET("/api/chats/u/:user", listChats)
 	// server.GET("/api/chats/:id", getChat)
 	// server.POST("/api/chats", createChat)
 	// server.POST("/api/chats/:id/messages", createMessage)
 
-	// server.GET("/api/search", func(c *gin.Context) {
-	// 	search := c.Query("search")
-
-	// 	devices := []*Device{}
-
-	// 	for _, device := range Db.Devices {
-	// 		if strings.Contains(strings.ReplaceAll(strings.ToLower(device.Name), " ", ""), strings.ToLower(search)) {
-	// 			devices = append(devices, device)
-	// 		}
-	// 	}
-
-	// 	c.HTML(http.StatusOK, "device-cards", gin.H{
-	// 		"Devices": devices,
-	// 	})
-	// })
-
+	server.PUT("/api/like", toggleLike)
+	server.GET("/ws", registerClient)
+	server.GET("/api/search", search)
+	server.GET("/api/component/category-list", getCategoryList)
 	server.GET("/api/useropts", getUserOpts)
 	server.GET("/api/mail", loadMail)
 	server.POST("/api/userselect", selectUser)
 
+	go hub.Run()
+
 	return server
+}
+
+func toggleLike(c *gin.Context) {
+	var req struct {
+		UserID   int `form:"userID"`
+		DeviceID int `form:"deviceID"`
+	}
+
+	if err := c.ShouldBind(&req); err != nil {
+		slog.Error(err.Error())
+		return
+	}
+
+	uIx := slices.IndexFunc(Db.Users, func(dbUser *User) bool {
+		return dbUser.ID == req.UserID
+	})
+
+	if uIx == -1 {
+		slog.Error("trying to toggle like with nonexistent user")
+		return
+	}
+
+	dIx := slices.IndexFunc(Db.Devices, func(dbDevice *Device) bool {
+		return dbDevice.ID == req.DeviceID
+	})
+
+	if dIx == -1 {
+		slog.Error("trying to toggle like for nonexistent device")
+		return
+	}
+
+	user := Db.Users[uIx]
+	udIx := slices.Index(user.Liked, req.DeviceID)
+
+	if udIx == -1 {
+		user.Liked = append(user.Liked, req.DeviceID)
+		hub.Deliver <- &notifications.Event{
+			Recipient: Db.Devices[dIx].Owner,
+			Content:   "\"" + Db.Devices[dIx].Title + "\" wurde geliked!",
+		}
+		slog.Info("!!!", "liked", user.Liked)
+	} else {
+		user.Liked = slices.Delete(user.Liked, udIx, udIx+1)
+		slog.Info("!!!", "liked", user.Liked)
+	}
+}
+
+func registerClient(c *gin.Context) {
+	uid, err := strconv.Atoi(c.Query("userID"))
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+
+	client := notifications.NewClient(hub, conn, uid)
+	hub.Register <- client
+	go client.EventPump()
+}
+
+func getCategoryList(c *gin.Context) {
+	tmpl, err := template.ParseFiles("web/components/category-list.tmpl")
+	if err != nil {
+		slog.Error(err.Error(), "err", err)
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	var content bytes.Buffer
+	err = tmpl.Execute(&content, Categories)
+	if err != nil {
+		slog.Error(err.Error(), "err", err)
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	c.Data(http.StatusOK, "text/html", content.Bytes())
+}
+
+func search(c *gin.Context) {
+	search := c.Query("search")
+	category := c.Query("category")
+	uExcept := c.Query("uExcept")
+	uOnly := c.Query("uOnly")
+
+	userID, err := strconv.Atoi(c.Query("userID"))
+	if err != nil {
+		return
+	}
+
+	uIx := slices.IndexFunc(Db.Users, func(dbUser *User) bool {
+		return dbUser.ID == userID
+	})
+
+	if uIx == -1 {
+		return
+	}
+
+	user := Db.Users[uIx]
+
+	type SearchDevice struct {
+		Device *Device
+		Liked  bool
+	}
+
+	devices := []SearchDevice{}
+
+	for _, device := range Db.Devices {
+		if !strings.Contains(strings.ReplaceAll(strings.ToLower(device.Title), " ", ""), strings.ToLower(search)) {
+			continue
+		}
+
+		if category != "Any" && device.Category.String() != category {
+			continue
+		}
+
+		if uExcept == "true" {
+			if device.Owner == userID {
+				continue
+			}
+		} else if uOnly == "true" {
+			if device.Owner != userID {
+				continue
+			}
+		}
+
+		devices = append(devices, SearchDevice{
+			device,
+			slices.IndexFunc(user.Liked, func(dId int) bool {
+				return dId == device.ID
+			}) != -1,
+		})
+	}
+	slog.Info("", "devices", devices)
+	c.HTML(http.StatusOK, "device-cards", devices)
 }
 
 func getUserOpts(c *gin.Context) {
@@ -212,7 +347,7 @@ func selectUser(c *gin.Context) {
 // 	devices := []*Device{}
 
 // 	for _, device := range Db.Devices {
-// 		if !strings.Contains(strings.ReplaceAll(strings.ToLower(device.Name), " ", ""), strings.ToLower(query.Search)) {
+// 		if !strings.Contains(strings.ReplaceAll(strings.ToLower(device.Title), " ", ""), strings.ToLower(query.Search)) {
 // 			continue
 // 		}
 

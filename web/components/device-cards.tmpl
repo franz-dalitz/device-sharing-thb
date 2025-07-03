@@ -1,13 +1,40 @@
 {{ define "device-cards" }}
-{{ range .Devices }}
+{{ range . }}
 <div class="col-md-6 col-lg-4">
   <div class="card shadow-sm">
     <div class="card-body">
-      <h5 class="card-title">{{ .Name }}</h5>
-      <p class="card-text">{{ .Description }}</p>
-      <p class="mb-1 text-muted">{{ .Category }}</p>
-      <p class="mb-1 text-muted">{{ .Location }}</p>
-      <a href="/api/devices/{{ .ID }}" class="btn btn-sm btn-primary">View Details...</a>
+      <h5 class="card-title">{{ .Device.Title }}</h5>
+      <p class="card-text">{{ .Device.Description }}</p>
+      <p class="mb-1 text-muted">{{ .Device.Category }}</p>
+      <p class="mb-1 text-muted">{{ .Device.Location }}</p>
+
+      <div class="d-flex justify-content-between align-items-center w-100">
+        <button class="btn btn-danger" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ .Device.ID }}"
+          aria-expanded="false" aria-controls="collapseExample">
+          Details
+        </button>
+        <a class="icon-link" href="#" hx-put="/api/like" hx-vals='js:{
+            "userID": sessionStorage.getItem("userID"),
+            "deviceID": {{ .Device.ID }}
+          }' hx-swap="none" >
+          <i id="heart-{{ .Device.ID }}" class="bi {{ if .Liked }} bi-heart-fill {{ else }} bi-heart {{ end }}fs-4" style="color: red;"></i>
+        </a>
+        <script>
+          document.getElementById('heart-{{ .Device.ID }}').addEventListener('click', function() {
+              this.classList.toggle('bi-heart');
+              this.classList.toggle('bi-heart-fill');
+          });
+      </script>
+      </div>
+
+
+
+      <!-- Collapsible Content -->
+      <div class="collapse" id="collapse-{{ .Device.ID }}">
+        <div class="card card-body">
+          Some placeholder content for the collapse component.
+        </div>
+      </div>
     </div>
   </div>
 </div>
