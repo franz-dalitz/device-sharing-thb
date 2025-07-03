@@ -17,9 +17,11 @@
   <!-- Main Content -->
   <div class="container py-4">
 
-    <form onsubmit="return false;" action="" hx-get="/api/search" hx-trigger="load, keyup changed delay:200ms from:#search, change from:#category" hx-target="#device-list"
+    <form onsubmit="return false;" action="" hx-get="/api/search"
+      hx-trigger="load, keyup changed delay:200ms from:#search, change from:#category" hx-target="#device-list"
       hx-swap="innerHTML" hx-vals='js:{
-              "userID": sessionStorage.getItem("userID")
+              "userID": sessionStorage.getItem("userID"),
+              "uExcept": "true"
             }'>
 
       <!-- Search -->
@@ -27,11 +29,12 @@
         <div class="col-12">
           <input name="search" id="search" class="form-control" type="text" placeholder="Suche" />
         </div>
+      </div>
 
-        <select class="form-select form-select-sm" name="category" id="category">
-          <option id="any" hx-get="/api/component/category-list" hx-trigger="load" hx-swap="afterend" hx-target="#any">
-            Any</option>
-        </select>
+      <select class="form-select form-select-sm my-4" name="category" id="category">
+        <option id="any" hx-get="/api/component/category-list" hx-trigger="load" hx-swap="afterend" hx-target="#any">
+          Any</option>
+      </select>
 
     </form>
 

@@ -25,6 +25,7 @@ func Server() *gin.Engine {
 	server.Static("/static/htmx", "web/node_modules/htmx.org/dist")
 	server.Static("/static/bootstrap", "web/node_modules/bootstrap/dist")
 	server.Static("/static/bootstrap-icons", "web/node_modules/bootstrap-icons/font")
+	server.Static("/static/thb.svg", "web/thb.svg")
 
 	server.LoadHTMLGlob("web/**/*.tmpl")
 
@@ -49,14 +50,10 @@ func Server() *gin.Engine {
 	// server.POST("/api/chats", createChat)
 	// server.POST("/api/chats/:id/messages", createMessage)
 
-	server.PUT("/api/like/:user/:device", toggleLike)
-
-	server.POST("/api/notify", sendNotification)
+	server.PUT("/api/like", toggleLike)
 	server.GET("/ws", registerClient)
-
 	server.GET("/api/search", search)
 	server.GET("/api/component/category-list", getCategoryList)
-
 	server.GET("/api/useropts", getUserOpts)
 	server.GET("/api/mail", loadMail)
 	server.POST("/api/userselect", selectUser)
@@ -67,20 +64,18 @@ func Server() *gin.Engine {
 }
 
 func toggleLike(c *gin.Context) {
-	uId, err := strconv.Atoi(c.Param("user"))
-	if err != nil {
-		slog.Error(err.Error())
-		return
+	var req struct {
+		UserID   int `form:"userID"`
+		DeviceID int `form:"deviceID"`
 	}
 
-	dId, err := strconv.Atoi(c.Param("device"))
-	if err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		slog.Error(err.Error())
 		return
 	}
 
 	uIx := slices.IndexFunc(Db.Users, func(dbUser *User) bool {
-		return dbUser.ID == uId
+		return dbUser.ID == req.UserID
 	})
 
 	if uIx == -1 {
@@ -89,7 +84,7 @@ func toggleLike(c *gin.Context) {
 	}
 
 	dIx := slices.IndexFunc(Db.Devices, func(dbDevice *Device) bool {
-		return dbDevice.ID == dId
+		return dbDevice.ID == req.DeviceID
 	})
 
 	if dIx == -1 {
@@ -98,19 +93,16 @@ func toggleLike(c *gin.Context) {
 	}
 
 	user := Db.Users[uIx]
-	udIx := slices.Index(user.Liked, dId)
+	udIx := slices.Index(user.Liked, req.DeviceID)
 
 	if udIx == -1 {
-		user.Liked = append(user.Liked, dId)
+		user.Liked = append(user.Liked, req.DeviceID)
+		hub.Deliver <- &notifications.Event{
+			Recipient: Db.Devices[dIx].Owner,
+			Content:   "\"" + Db.Devices[dIx].Title + "\" wurde geliked!",
+		}
 	} else {
 		user.Liked = slices.Delete(user.Liked, udIx, udIx)
-	}
-}
-
-func sendNotification(c *gin.Context) {
-	hub.Deliver <- &notifications.Event{
-		Recipient: 0,
-		Content:   "some message",
 	}
 }
 
@@ -153,12 +145,33 @@ func getCategoryList(c *gin.Context) {
 func search(c *gin.Context) {
 	search := c.Query("search")
 	category := c.Query("category")
-	notUser := c.Query("notUser")
-	onlyUser := c.Query("onlyUser")
+	uExcept := c.Query("uExcept")
+	uOnly := c.Query("uOnly")
 
-	devices := []*Device{}
+	userID, err := strconv.Atoi(c.Query("userID"))
+	if err != nil {
+		return
+	}
+
+	uIx := slices.IndexFunc(Db.Users, func(dbUser *User) bool {
+		return dbUser.ID == userID
+	})
+
+	if uIx == -1 {
+		return
+	}
+
+	user := Db.Users[uIx]
+
+	type SearchDevice struct {
+		Device *Device
+		Liked  bool
+	}
+
+	devices := []SearchDevice{}
+
 	for _, device := range Db.Devices {
-		if !strings.Contains(strings.ReplaceAll(strings.ToLower(device.Name), " ", ""), strings.ToLower(search)) {
+		if !strings.Contains(strings.ReplaceAll(strings.ToLower(device.Title), " ", ""), strings.ToLower(search)) {
 			continue
 		}
 
@@ -166,34 +179,25 @@ func search(c *gin.Context) {
 			continue
 		}
 
-		if notUser != "" {
-			nU, err := strconv.Atoi(notUser)
-			if err != nil {
-				slog.Error(err.Error())
-				return
-			}
-
-			if device.Owner == nU {
+		if uExcept == "true" {
+			if device.Owner == userID {
 				continue
 			}
-		} else if onlyUser != "" {
-			oU, err := strconv.Atoi(onlyUser)
-			if err != nil {
-				slog.Error(err.Error())
-				return
-			}
-
-			if device.Owner != oU {
+		} else if uOnly == "true" {
+			if device.Owner != userID {
 				continue
 			}
 		}
 
-		devices = append(devices, device)
+		devices = append(devices, SearchDevice{
+			device,
+			slices.IndexFunc(user.Liked, func(dId int) bool {
+				return dId == device.ID
+			}) != -1,
+		})
 	}
-
-	c.HTML(http.StatusOK, "device-cards", gin.H{
-		"Devices": devices,
-	})
+	slog.Info("", "devices", devices)
+	c.HTML(http.StatusOK, "device-cards", devices)
 }
 
 func getUserOpts(c *gin.Context) {
@@ -341,7 +345,7 @@ func selectUser(c *gin.Context) {
 // 	devices := []*Device{}
 
 // 	for _, device := range Db.Devices {
-// 		if !strings.Contains(strings.ReplaceAll(strings.ToLower(device.Name), " ", ""), strings.ToLower(query.Search)) {
+// 		if !strings.Contains(strings.ReplaceAll(strings.ToLower(device.Title), " ", ""), strings.ToLower(query.Search)) {
 // 			continue
 // 		}
 

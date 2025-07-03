@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>Add a Device</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link>
-   <link href="/static/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/bootstrap/css/bootstrap.min.css" rel="stylesheet">
   <link href="/static/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
   <script src="/static/htmx/htmx.min.js"></script>
 </head>
@@ -23,6 +24,12 @@
             <!-- HTMX Form -->
             <form hx-post="/devices/add" hx-encoding="multipart/form-data" hx-target="#form-result">
 
+              <!-- Name -->
+              <div class="mb-3">
+                <label for="title" class="form-label fw-semibold">Title</label>
+                <textarea id="title" name="title" class="form-control" rows="1" required></textarea>
+              </div>
+
               <!-- Description -->
               <div class="mb-3">
                 <label for="description" class="form-label fw-semibold">Description</label>
@@ -33,11 +40,8 @@
               <div class="mb-3">
                 <label for="category" class="form-label fw-semibold">Category</label>
                 <select id="category" name="category" class="form-select" required>
-                  <option value="" disabled selected>Select a category</option>
-                  <option>Tools</option>
-                  <option>Electronics</option>
-                  <option>Mobile</option>
-                  <option>Kitchen</option>
+                  <option value="" disabled selected id="select" hx-get="/api/component/category-list" hx-trigger="load"
+                    hx-swap="afterend" hx-target="#select">Select a category</option>
                 </select>
               </div>
 
@@ -55,8 +59,9 @@
 
               <!-- Buttons -->
               <div class="d-flex justify-content-between">
-                {{/* <button type="button" class="btn btn-secondary" onclick="window.history.back()">Cancel</button> */}}
-                <button type="button" class="btn btn-secondary" >Cancel</button>
+                {{/* <button type="button" class="btn btn-secondary" onclick="window.history.back()">Cancel</button>
+                */}}
+                <button type="button" class="btn btn-secondary">Cancel</button>
                 <button type="submit" class="btn btn-primary">Submit</button>
               </div>
 
@@ -74,7 +79,8 @@
 
   {{ template "navbar" }}
 
-   <script src="/static/htmx/htmx.min.js"></script>
+  <script src="/static/htmx/htmx.min.js"></script>
   <script src="/static/bootstrap/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>

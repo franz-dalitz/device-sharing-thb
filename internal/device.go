@@ -7,7 +7,7 @@ var didg = IDGen{}
 type Device struct {
 	ID          int
 	Owner       int
-	Name        string
+	Title       string
 	Category    Category
 	Description string
 	Location    string
