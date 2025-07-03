@@ -101,10 +101,8 @@ func toggleLike(c *gin.Context) {
 			Recipient: Db.Devices[dIx].Owner,
 			Content:   "\"" + Db.Devices[dIx].Title + "\" wurde geliked!",
 		}
-		slog.Info("!!!", "liked", user.Liked)
 	} else {
 		user.Liked = slices.Delete(user.Liked, udIx, udIx+1)
-		slog.Info("!!!", "liked", user.Liked)
 	}
 }
 
