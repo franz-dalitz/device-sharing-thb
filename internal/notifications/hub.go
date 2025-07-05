@@ -22,20 +22,12 @@ func (h *Hub) Run() {
 		case client := <-h.Register:
 			h.Clients[client] = true
 		case client := <-h.Unregister:
-			if _, ok := h.Clients[client]; ok {
-				delete(h.Clients, client)
-				close(client.Events)
-			}
+			delete(h.Clients, client)
+			client.cancel()
 		case event := <-h.Deliver:
 			for client := range h.Clients {
-				if event.Recipient != client.UserID {
-					continue
-				}
-				select {
-				case client.Events <- event:
-				default:
-					close(client.Events)
-					delete(h.Clients, client)
+				if event.Recipient == client.user.ID {
+					client.events <- event
 				}
 			}
 		}

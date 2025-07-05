@@ -3,23 +3,28 @@ package internal
 import (
 	"bytes"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"slices"
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 
+	"github.com/franz-dalitz/device-sharing-thb/internal/data"
 	"github.com/franz-dalitz/device-sharing-thb/internal/notifications"
 	"github.com/gin-gonic/gin"
 )
 
 var (
+	db       = data.Database{}
 	hub      = notifications.NewHub()
 	upgrader = notifications.DefaultUpgrader()
 )
 
 func Server() *gin.Engine {
 	server := gin.Default()
+	db.Mock()
 
 	// static content and page routing
 	server.Static("/static/htmx", "web/node_modules/htmx.org/dist")
@@ -35,21 +40,11 @@ func Server() *gin.Engine {
 		c.HTML(http.StatusOK, page, nil)
 	})
 
-	// // API
-	// server.GET("/api/users", listUsers)
-	// server.GET("/api/users/:id", getUser)
-	// server.GET("/api/devices", listDevices)
-	// server.GET("/api/devices/query", queryDevices)
-	// server.GET("/api/devices/:id", getDevice)
-	// server.POST("/api/devices", createDevice)
-	// server.DELETE("/api/devices/:id", deleteDevice)
-	// server.PUT("/api/devices", updateDevice)
-	// server.GET("/api/categories", listCategories)
-	// server.GET("/api/chats/u/:user", listChats)
-	// server.GET("/api/chats/:id", getChat)
-	// server.POST("/api/chats", createChat)
-	// server.POST("/api/chats/:id/messages", createMessage)
-
+	// API
+	server.POST("/api/messages", sendMessage)
+	server.GET("/api/messages", loadMessages)
+	server.POST("/api/chats", createChat)
+	server.POST("/api/devices", createDevice)
 	server.PUT("/api/like", toggleLike)
 	server.GET("/ws", registerClient)
 	server.GET("/api/search", search)
@@ -57,10 +52,211 @@ func Server() *gin.Engine {
 	server.GET("/api/useropts", getUserOpts)
 	server.GET("/api/mail", loadMail)
 	server.POST("/api/userselect", selectUser)
+	server.GET("/api/components/contacts", getContacts)
 
 	go hub.Run()
 
 	return server
+}
+
+func sendMessage(c *gin.Context) {
+	var req struct {
+		UserID  int    `form:"userID"`
+		ChatID  int    `form:"chatID"`
+		Message string `form:"message"`
+	}
+	err := c.ShouldBind(&req)
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	uIx := slices.IndexFunc(db.Users, func(dbUser *data.User) bool {
+		return dbUser.ID == req.UserID
+	})
+	if uIx == -1 {
+		slog.Error("trying to access nonexistent user")
+		return
+	}
+	user := db.Users[uIx]
+	cIx := slices.IndexFunc(db.Chats, func(dbChat *data.Chat) bool {
+		return dbChat.ID == req.ChatID
+	})
+	if cIx == -1 {
+		slog.Error("trying to access nonexistent chat")
+		return
+	}
+	chat := db.Chats[cIx]
+	if !chat.Participants.Contains(req.UserID) {
+		slog.Error("not allowed to acces this chat as this user")
+		return
+	}
+	tmpl, err := template.ParseFiles("web/components/messages.tmpl")
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	var content bytes.Buffer
+	err = tmpl.Execute(&content, []struct {
+		Self    bool
+		Content string
+	}{
+		{
+			Self:    true,
+			Content: req.Message,
+		},
+	})
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	other, err := chat.Participants.Other(req.UserID)
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	chat.Messages = append(chat.Messages, data.NewMessage(req.UserID, req.Message))
+	hub.Deliver <- &notifications.Event{
+		Recipient: other,
+		Content:   user.Name + " sent you a message!",
+	}
+	c.Data(http.StatusOK, "text/html", content.Bytes())
+}
+
+func loadMessages(c *gin.Context) {
+	userID, err := strconv.Atoi(c.Query("userID"))
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	chatID, err := strconv.Atoi(c.Query("chatID"))
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	if slices.IndexFunc(db.Users, func(dbUser *data.User) bool {
+		return dbUser.ID == userID
+	}) == -1 {
+		slog.Error("trying to access nonexistent user")
+		return
+	}
+	cIx := slices.IndexFunc(db.Chats, func(dbChat *data.Chat) bool {
+		return dbChat.ID == chatID
+	})
+	if cIx == -1 {
+		slog.Error("trying to access nonexistent chat")
+		return
+	}
+	chat := db.Chats[cIx]
+	if !chat.Participants.Contains(userID) {
+		slog.Error("not allowed to acces this chat as this user")
+		return
+	}
+	tmpl, err := template.ParseFiles("web/components/messages.tmpl")
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	type msg struct {
+		Self    bool
+		Content string
+	}
+	messages := []*msg{}
+	for _, chatMsg := range chat.Messages {
+		messages = append(messages, &msg{
+			Self:    userID == chatMsg.By,
+			Content: chatMsg.Content,
+		})
+	}
+	var content bytes.Buffer
+	err = tmpl.Execute(&content, messages)
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	c.Data(http.StatusOK, "text/html", content.Bytes())
+}
+
+func createChat(c *gin.Context) {
+	from := 0 // TODO
+	to := 0   // TODO
+	pair := data.IntPair{X: from, Y: to}
+
+	if ix := slices.IndexFunc(db.Chats, func(chat *data.Chat) bool {
+		return chat.Participants.Equals(pair)
+	}); ix == -1 {
+		slog.Error("trying to create a chat that already exists")
+		return
+	}
+
+	db.Chats = append(db.Chats, data.NewChat(pair))
+}
+
+func getContacts(c *gin.Context) {
+	userID, err := strconv.Atoi(c.Query("userID"))
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	userIndex := slices.IndexFunc(db.Users, func(dbUser *data.User) bool {
+		return dbUser.ID == userID
+	})
+	if userIndex == -1 {
+		slog.Error("trying to get contacts of nonexistent user")
+		return
+	}
+	tmpl, err := template.ParseFiles("web/components/contacts.tmpl")
+	if err != nil {
+		slog.Error(err.Error(), "err", err)
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	type contact struct {
+		ChatID int
+		Name   string
+		Online bool
+		Seen   string
+	}
+	contacts := []*contact{}
+	for _, chat := range db.Chats {
+		if chat.Participants.Contains(userID) {
+			otherID, err := chat.Participants.Other(userID)
+			if err != nil {
+				slog.Error(err.Error())
+				return
+			}
+			otherIndex := slices.IndexFunc(db.Users, func(dbUser *data.User) bool {
+				return dbUser.ID == otherID
+			})
+			if otherIndex == -1 {
+				slog.Error("trying to access nonexistent user")
+				return
+			}
+			other := db.Users[otherIndex]
+			since := time.Since(other.Seen)
+			var seen string
+			if since < time.Hour {
+				seen = strconv.Itoa(int(since.Minutes())) + " Minute(s)"
+			} else if since < 24*time.Hour {
+				seen = strconv.Itoa(int(since.Hours())) + " Hour(s)"
+			} else {
+				seen = strconv.Itoa(int(since.Hours()/24)) + " Day(s)"
+			}
+			contacts = append(contacts, &contact{
+				ChatID: chat.ID,
+				Name:   other.Name,
+				Online: time.Since(other.Seen) < time.Minute,
+				Seen:   seen,
+			})
+		}
+	}
+	var content bytes.Buffer
+	err = tmpl.Execute(&content, contacts)
+	if err != nil {
+		slog.Error(err.Error(), "err", err)
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	c.Data(http.StatusOK, "text/html", content.Bytes())
 }
 
 func toggleLike(c *gin.Context) {
@@ -74,7 +270,7 @@ func toggleLike(c *gin.Context) {
 		return
 	}
 
-	uIx := slices.IndexFunc(Db.Users, func(dbUser *User) bool {
+	uIx := slices.IndexFunc(db.Users, func(dbUser *data.User) bool {
 		return dbUser.ID == req.UserID
 	})
 
@@ -83,7 +279,7 @@ func toggleLike(c *gin.Context) {
 		return
 	}
 
-	dIx := slices.IndexFunc(Db.Devices, func(dbDevice *Device) bool {
+	dIx := slices.IndexFunc(db.Devices, func(dbDevice *data.Device) bool {
 		return dbDevice.ID == req.DeviceID
 	})
 
@@ -92,14 +288,14 @@ func toggleLike(c *gin.Context) {
 		return
 	}
 
-	user := Db.Users[uIx]
+	user := db.Users[uIx]
 	udIx := slices.Index(user.Liked, req.DeviceID)
 
 	if udIx == -1 {
 		user.Liked = append(user.Liked, req.DeviceID)
 		hub.Deliver <- &notifications.Event{
-			Recipient: Db.Devices[dIx].Owner,
-			Content:   "\"" + Db.Devices[dIx].Title + "\" wurde geliked!",
+			Recipient: db.Devices[dIx].Owner,
+			Content:   "\"" + db.Devices[dIx].Title + "\" wurde geliked!",
 		}
 	} else {
 		user.Liked = slices.Delete(user.Liked, udIx, udIx+1)
@@ -112,6 +308,13 @@ func registerClient(c *gin.Context) {
 		slog.Error(err.Error())
 		return
 	}
+	uIx := slices.IndexFunc(db.Users, func(dbUser *data.User) bool {
+		return dbUser.ID == uid
+	})
+	if uIx == -1 {
+		slog.Error("trying to register client for nonexistent user")
+		return
+	}
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -119,9 +322,9 @@ func registerClient(c *gin.Context) {
 		return
 	}
 
-	client := notifications.NewClient(hub, conn, uid)
+	client := notifications.NewClient(hub, conn, db.Users[uIx])
 	hub.Register <- client
-	go client.EventPump()
+	client.Run()
 }
 
 func getCategoryList(c *gin.Context) {
@@ -133,7 +336,7 @@ func getCategoryList(c *gin.Context) {
 	}
 
 	var content bytes.Buffer
-	err = tmpl.Execute(&content, Categories)
+	err = tmpl.Execute(&content, data.Categories)
 	if err != nil {
 		slog.Error(err.Error(), "err", err)
 		c.AbortWithError(http.StatusInternalServerError, err)
@@ -153,7 +356,7 @@ func search(c *gin.Context) {
 		return
 	}
 
-	uIx := slices.IndexFunc(Db.Users, func(dbUser *User) bool {
+	uIx := slices.IndexFunc(db.Users, func(dbUser *data.User) bool {
 		return dbUser.ID == userID
 	})
 
@@ -161,16 +364,16 @@ func search(c *gin.Context) {
 		return
 	}
 
-	user := Db.Users[uIx]
+	user := db.Users[uIx]
 
 	type SearchDevice struct {
-		Device *Device
+		Device *data.Device
 		Liked  bool
 	}
 
 	devices := []SearchDevice{}
 
-	for _, device := range Db.Devices {
+	for _, device := range db.Devices {
 		if !strings.Contains(strings.ReplaceAll(strings.ToLower(device.Title), " ", ""), strings.ToLower(search)) {
 			continue
 		}
@@ -196,7 +399,6 @@ func search(c *gin.Context) {
 			}) != -1,
 		})
 	}
-	slog.Info("", "devices", devices)
 	c.HTML(http.StatusOK, "device-cards", devices)
 }
 
@@ -217,7 +419,7 @@ func getUserOpts(c *gin.Context) {
 
 	var content bytes.Buffer
 	err = tmpl.Execute(&content, gin.H{
-		"Users":    Db.Users,
+		"Users":    db.Users,
 		"Selected": id,
 	})
 	if err != nil {
@@ -243,13 +445,13 @@ func loadMail(c *gin.Context) {
 		return
 	}
 
-	ix := slices.IndexFunc(Db.Users, func(dbUser *User) bool {
+	ix := slices.IndexFunc(db.Users, func(dbUser *data.User) bool {
 		return dbUser.ID == id
 	})
 	if ix == -1 {
 		return
 	}
-	user := Db.Users[ix]
+	user := db.Users[ix]
 
 	var content bytes.Buffer
 	err = tmpl.Execute(&content, user)
@@ -268,13 +470,13 @@ func selectUser(c *gin.Context) {
 		slog.Error(err.Error(), "err", err)
 		c.AbortWithError(http.StatusInternalServerError, err)
 	}
-	ix := slices.IndexFunc(Db.Users, func(dbUser *User) bool {
+	ix := slices.IndexFunc(db.Users, func(dbUser *data.User) bool {
 		return dbUser.ID == id
 	})
 	if ix == -1 {
 		return
 	}
-	user := Db.Users[ix]
+	user := db.Users[ix]
 
 	tmpl, err := template.ParseFiles("web/components/mail.tmpl")
 	if err != nil {
@@ -293,273 +495,27 @@ func selectUser(c *gin.Context) {
 	c.Data(http.StatusOK, "text/html", content.Bytes())
 }
 
-// func listUsers(c *gin.Context) {
-// 	var uIds []int
-// 	for _, user := range Db.Users {
-// 		uIds = append(uIds, user.ID)
-// 	}
+func createDevice(c *gin.Context) {
+	var req struct {
+		Owner       int                  `form:"userID"`
+		Title       string               `form:"title"`
+		Category    string               `form:"category"`
+		Description string               `form:"description"`
+		Location    string               `form:"location"`
+		Photo       multipart.FileHeader `form:"photo"`
+	}
 
-// 	c.JSON(http.StatusOK, uIds)
-// }
+	if err := c.ShouldBind(&req); err != nil {
+		slog.Error(err.Error())
+		return
+	}
 
-// func getUser(c *gin.Context) {
-// 	id, err := strconv.Atoi(c.Param("id"))
-// 	if err != nil {
-// 		slog.Error(err.Error())
-// 		return
-// 	}
+	cat, err := data.AsCategory(req.Category)
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
 
-// 	ix := slices.IndexFunc(Db.Users, func(dbUser *User) bool {
-// 		return dbUser.ID == id
-// 	})
-
-// 	if ix == -1 {
-// 		slog.Error("trying to get a nonexistent user")
-// 		return
-// 	}
-
-// 	c.JSON(http.StatusOK, Db.Users[ix])
-// }
-
-// func listDevices(c *gin.Context) {
-// 	var dIds []int
-// 	for _, device := range Db.Devices {
-// 		dIds = append(dIds, device.ID)
-// 	}
-
-// 	c.JSON(http.StatusOK, dIds)
-// }
-
-// type DeviceQuery struct {
-// 	Search   string   `json:"search"`
-// 	Category Category `json:"category"`
-// }
-
-// func queryDevices(c *gin.Context) {
-// 	var query DeviceQuery
-// 	if err := c.BindJSON(&query); err != nil {
-// 		slog.Error("failed to parse device query", "error", err)
-// 		return
-// 	}
-
-// 	devices := []*Device{}
-
-// 	for _, device := range Db.Devices {
-// 		if !strings.Contains(strings.ReplaceAll(strings.ToLower(device.Title), " ", ""), strings.ToLower(query.Search)) {
-// 			continue
-// 		}
-
-// 		if query.Category != 0 && device.Category != query.Category {
-// 			continue
-// 		}
-
-// 		devices = append(devices, device)
-// 	}
-
-// 	c.JSON(http.StatusOK, devices)
-// }
-
-// func getDevice(c *gin.Context) {
-// 	id, err := strconv.Atoi(c.Param("id"))
-// 	if err != nil {
-// 		slog.Error(err.Error())
-// 		return
-// 	}
-
-// 	ix := slices.IndexFunc(Db.Devices, func(dbDevice *Device) bool {
-// 		return dbDevice.ID == id
-// 	})
-
-// 	if ix == -1 {
-// 		slog.Error("trying to get a nonexistent device")
-// 		return
-// 	}
-
-// 	c.JSON(http.StatusOK, Db.Devices[id])
-// }
-
-// func createDevice(c *gin.Context) {
-// 	var device Device
-// 	if err := c.BindJSON(&device); err != nil {
-// 		slog.Error(err.Error())
-// 		return
-// 	}
-
-// 	Db.Devices = append(Db.Devices, &device)
-// }
-
-// func deleteDevice(c *gin.Context) {
-// 	id, err := strconv.Atoi(c.Param("id"))
-// 	if err != nil {
-// 		slog.Error(err.Error())
-// 		return
-// 	}
-
-// 	Db.Devices = slices.DeleteFunc(Db.Devices, func(device *Device) bool {
-// 		return device.ID == id
-// 	})
-
-// 	for _, user := range Db.Users {
-// 		user.Liked = slices.DeleteFunc(user.Liked, func(dbId int) bool {
-// 			return dbId == id
-// 		})
-// 	}
-// }
-
-// func updateDevice(c *gin.Context) {
-// 	var device Device
-// 	if err := c.BindJSON(&device); err != nil {
-// 		slog.Error(err.Error())
-// 		return
-// 	}
-
-// 	i := slices.IndexFunc(Db.Devices, func(DbDevice *Device) bool {
-// 		return DbDevice.ID == device.ID
-// 	})
-
-// 	if i == -1 {
-// 		slog.Error("trying to update nonexistent device")
-// 		return
-// 	}
-
-// 	Db.Devices[i] = &device
-// }
-
-// func listCategories(c *gin.Context) {
-// 	c.JSON(http.StatusOK, Categories)
-// }
-
-// func toggleLike(c *gin.Context) {
-// 	uId, err := strconv.Atoi(c.Param("user"))
-// 	if err != nil {
-// 		slog.Error(err.Error())
-// 		return
-// 	}
-
-// 	dId, err := strconv.Atoi(c.Param("device"))
-// 	if err != nil {
-// 		slog.Error(err.Error())
-// 		return
-// 	}
-
-// 	uIx := slices.IndexFunc(Db.Users, func(dbUser *User) bool {
-// 		return dbUser.ID == uId
-// 	})
-
-// 	if uIx == -1 {
-// 		slog.Error("trying to toggle like with nonexistent user")
-// 		return
-// 	}
-
-// 	dIx := slices.IndexFunc(Db.Devices, func(dbDevice *Device) bool {
-// 		return dbDevice.ID == dId
-// 	})
-
-// 	if dIx == -1 {
-// 		slog.Error("trying to toggle like for nonexistent device")
-// 		return
-// 	}
-
-// 	user := Db.Users[uIx]
-// 	udIx := slices.Index(user.Liked, dId)
-
-// 	if udIx == -1 {
-// 		user.Liked = append(user.Liked, dId)
-// 	} else {
-// 		user.Liked = slices.Delete(user.Liked, udIx, udIx)
-// 	}
-// }
-
-// func listChats(c *gin.Context) {
-// 	uId, err := strconv.Atoi(c.Param("user"))
-// 	if err != nil {
-// 		slog.Error(err.Error())
-// 		return
-// 	}
-
-// 	uIx := slices.IndexFunc(Db.Users, func(dbUser *User) bool {
-// 		return dbUser.ID == uId
-// 	})
-
-// 	if uIx == -1 {
-// 		slog.Error("trying to list chats of nonexistent user")
-// 		return
-// 	}
-
-// 	var chats []int
-// 	for _, chat := range Db.Chats {
-// 		if chat.Participants.Contains(uId) {
-// 			chats = append(chats, chat.ID)
-// 		}
-// 	}
-
-// 	c.JSON(http.StatusOK, chats)
-// }
-
-// func getChat(c *gin.Context) {
-// 	id, err := strconv.Atoi(c.Param("id"))
-// 	if err != nil {
-// 		slog.Error(err.Error())
-// 		return
-// 	}
-
-// 	ix := slices.IndexFunc(Db.Chats, func(dbChat *Chat) bool {
-// 		return dbChat.ID == id
-// 	})
-
-// 	if ix == -1 {
-// 		slog.Error("trying to get nonexistent chat")
-// 		return
-// 	}
-
-// 	c.JSON(http.StatusOK, Db.Chats[ix])
-// }
-
-// func createChat(c *gin.Context) {
-// 	var pair IntPair
-// 	if err := c.BindJSON(&pair); err != nil {
-// 		slog.Error("failed to bind participant pair", "error", err)
-// 		return
-// 	}
-
-// 	if pair.X == pair.Y {
-// 		slog.Error("can't create chat between user and themselves")
-// 		return
-// 	}
-
-// 	for _, chat := range Db.Chats {
-// 		if chat.Participants.Equals(pair) {
-// 			slog.Error("a chat between these users already exists")
-// 			return
-// 		}
-// 	}
-
-// 	chat := NewChat(pair)
-// 	Db.Chats = append(Db.Chats, chat)
-// 	c.JSON(http.StatusOK, chat)
-// }
-
-// func createMessage(c *gin.Context) {
-// 	id, err := strconv.Atoi(c.Param("id"))
-// 	if err != nil {
-// 		slog.Error(err.Error())
-// 		return
-// 	}
-
-// 	ix := slices.IndexFunc(Db.Chats, func(dbChat *Chat) bool {
-// 		return dbChat.ID == id
-// 	})
-
-// 	if ix == -1 {
-// 		slog.Error("trying to post message to nonexistent chat")
-// 		return
-// 	}
-
-// 	var msg Message
-// 	if err := c.BindJSON(&msg); err != nil {
-// 		slog.Error("failed to bind message", "error", err)
-// 		return
-// 	}
-
-// 	Db.Chats[ix].Messages = append(Db.Chats[ix].Messages, &msg)
-// }
+	device := data.NewDevice(req.Owner, req.Title, cat, req.Description, req.Location).WithPhoto(req.Photo)
+	db.Devices = append(db.Devices, device)
+}

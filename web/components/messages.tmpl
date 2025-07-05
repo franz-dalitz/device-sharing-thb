@@ -1,0 +1,7 @@
+{{ range . }}
+{{ if .Self }}
+<div class="align-self-end bg-danger text-white rounded-3 px-3 py-2" style="max-width: 75%;"> {{ .Content }} </div>
+{{ else }}
+<div class="align-self-start bg-white text-dark rounded-3 px-3 py-2 shadow-sm" style="max-width: 75%;"> {{ .Content }} </div>
+{{ end }}
+{{ end }}

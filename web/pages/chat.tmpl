@@ -1,21 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
 
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="/static/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
+  <script src="/static/htmx/htmx.min.js"></script>
+  <style>
+    body {
+      padding-bottom: 10vh;
+    }
+  </style>
+</head>
 
-<!-- Chat with Andrew -->
-<div class="card-body">
-  <h5 class="card-title">Andrew Parker</h5>
-  
-  <!-- Chat messages -->
-  <div class="mb-3">
-    <div class="bg-light rounded p-2 mb-2">What is the most popular meal in Japan? <span class="text-muted small">11:45</span></div>
-    <div class="bg-light rounded p-2 mb-2">Do you like it? <span class="text-muted small">11:45</span></div>
-    <div class="bg-light rounded p-2 mb-2">It’s morning in Tokyo <span class="text-muted small">11:43</span></div>
-  </div>
+<body class="d-flex flex-column vh-100">
 
-  <!-- Send message -->
-  <form hx-post="/chat/martha/send" hx-target="#chat-content" hx-swap="innerHTML">
-    <div class="input-group">
-      <input type="text" name="message" class="form-control" placeholder="Message..." required>
-      <button class="btn btn-primary" type="submit">Send</button>
-    </div>
+  {{ template "head" }}
+
+  <header id="user" class="bg-white border-bottom p-3 fw-bold"></header>
+  <script>document.getElementById('user').innerHTML = new URLSearchParams(window.location.search).get('user')</script>
+
+  <div class="chat-box flex-grow-1 p-3 bg-light d-flex flex-column gap-2" id="messages" hx-get="/api/messages" hx-swap="innerHTML"
+    hx-trigger="load" hx-vals='js:{
+    "userID": sessionStorage.getItem("userID"),
+    "chatID": new URLSearchParams(window.location.search).get("chat")
+  }'></div>
+
+  <form class="d-flex p-3 bg-white border-top gap-2" hx-post="/api/messages" hx-target="#messages" hx-swap="beforeend" hx-on::after-request="this.reset()" hx-vals='js:{
+    "userID": sessionStorage.getItem("userID"),
+    "chatID": new URLSearchParams(window.location.search).get("chat")
+  }'>
+    <input class="form-control" id="message" name="message" type="text" placeholder="Message">
+    <button class="btn btn-danger" type="submit">Send</button>
   </form>
-</div>
+
+  {{ template "navbar" }}
+
+</body>
+
+</html>

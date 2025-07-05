@@ -8,7 +8,7 @@
 <script src="/static/htmx/ext/ws.js"></script>
 <script src="/static/bootstrap/js/bootstrap.bundle.min.js"></script>
 <div hx-ext="ws" id="notify-connect"></div>
-<div id="notifications" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
+<div id="notifications" class="toast-container position-fixed top-0 end-0 p-3"></div>
 <script>
     document.getElementById('notify-connect').setAttribute('ws-connect', '/ws?userID=' + sessionStorage.getItem('userID'));
 
@@ -27,7 +27,7 @@
     <div class="container-fluid d-flex justify-content-center">
     
         <!-- UL wird zentriert, Abstand per gap -->
-        <ul class="navbar-nav d-flex flex-row align-items-center gap-4">
+        <ul class="navbar-nav d-flex flex-row align-items-center gap-5">
             <li class="nav-item">
                 <a class="nav-link text-black" href="/browse"><i class="bi bi-search fs-4"></i></a>
             </li>
@@ -35,10 +35,10 @@
                 <a class="nav-link text-black" href="#"><i class="bi bi-wallet fs-4"></i></a>
             </li>
             <li class="nav-item">
-                <a class="nav-link active text-black" href="/adddevice"><i class="bi bi-plus-circle fs-4"></i></a>
+                {{/* <a class="nav-link active text-black" href="/adddevice"><i class="bi bi-plus-circle fs-4"></i></a> */}}
             </li>
             <li class="nav-item">
-                <a class="nav-link text-black" href="/chatsoverview"><i class="bi bi-chat-left-dots fs-4"></i></a>
+                <a class="nav-link text-black" href="/contacts"><i class="bi bi-chat-left-dots fs-4"></i></a>
             </li>
             <li class="nav-item">
                 <a class="nav-link text-black" href="/settings"><i class="bi bi-gear-wide fs-4"></i></a>
@@ -46,5 +46,14 @@
         </ul>
     </div>
 </nav>
+
+<a href="/add"
+   class="btn btn-danger rounded-circle shadow d-flex justify-content-center align-items-center position-fixed"
+   style="color: #FF0000; border: 2px solid black;
+          bottom: 35px; left: 50%; transform: translateX(-50%);
+          width: 56px; height: 56px; z-index: 1031;">
+  <i class="bi bi-plus fs-4" style="color: black;"></i>
+</a>
+
 
 {{ end }}

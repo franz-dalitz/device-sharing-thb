@@ -16,13 +16,14 @@
   <div class="container py-5">
     <div class="row justify-content-center">
       <div class="col-md-8 col-lg-6">
-
         <div class="card shadow-sm">
           <div class="card-body">
             <h3 class="card-title mb-4 text-center">Add a Device</h3>
 
             <!-- HTMX Form -->
-            <form hx-post="/devices/add" hx-encoding="multipart/form-data" hx-target="#form-result">
+            <form hx-post="/api/devices" hx-vals='js:{
+              "userID": sessionStorage.getItem("userID")
+            }' hx-swap="none" hx-encoding="multipart/form-data" onsubmit="this.submit(); this.reset(); return false;">
 
               <!-- Name -->
               <div class="mb-3">
@@ -59,20 +60,12 @@
 
               <!-- Buttons -->
               <div class="d-flex justify-content-between">
-                {{/* <button type="button" class="btn btn-secondary" onclick="window.history.back()">Cancel</button>
-                */}}
-                <button type="button" class="btn btn-secondary">Cancel</button>
-                <button type="submit" class="btn btn-primary">Submit</button>
+                <button type="reset" class="btn btn-danger">Cancel</button>
+                <button type="submit" class="btn btn-danger">Submit</button>
               </div>
-
             </form>
-
-            <!-- HTMX Response Target -->
-            <div id="form-result" class="mt-3"></div>
-
           </div>
         </div>
-
       </div>
     </div>
   </div>

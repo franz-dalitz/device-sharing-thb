@@ -1,4 +1,6 @@
-package internal
+package data
+
+import "time"
 
 var uidg = IDGen{}
 
@@ -7,13 +9,14 @@ type User struct {
 	Name  string
 	Mail  string
 	Liked []int
+	Seen  time.Time
 }
 
 func NewUser(name string, mail string) *User {
 	return &User{
-		uidg.Generate(),
-		name,
-		mail,
-		[]int{},
+		ID:   uidg.Generate(),
+		Name: name,
+		Mail: mail,
+		Seen: time.Now().Add(-24 * 7 * time.Hour),
 	}
 }

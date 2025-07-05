@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="/static/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
+  <script src="/static/htmx/htmx.min.js"></script>
+  <style>
+    .user-item:not(:last-child) {
+      border-bottom: 1px solid #eee;
+    }
+  </style>
+</head>
+
+<body class="bg-white">
+
+  {{ template "head" }}
+
+  <div class="container py-4">
+    <h1 class="text-center fw-bold mb-4">Contacts</h1>
+    <div class="user-list mx-auto" style="max-width: 600px;" hx-get="/api/components/contacts" hx-swap="innerHTML" hx-trigger="load" hx-vals='js:{"userID": sessionStorage.getItem("userID")}'></div>
+  </div>
+
+  {{ template "navbar" }}
+
+</body>
+
+</html>
