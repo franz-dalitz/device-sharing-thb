@@ -116,8 +116,14 @@ func sendMessage(c *gin.Context) {
 	}
 	chat.Messages = append(chat.Messages, data.NewMessage(req.UserID, req.Message))
 	hub.Deliver <- &notifications.Event{
+		Type:      notifications.Notification,
 		Recipient: other,
-		Content:   user.Name + " sent you a message!",
+		Content:   "<a href=\"chat?chat=" + strconv.Itoa(chat.ID) + "&user=" + user.Name + "\">" + user.Name + " sent you a message!</a>",
+	}
+	hub.Deliver <- &notifications.Event{
+		Type:      notifications.Message,
+		Recipient: other,
+		Content:   req.Message,
 	}
 	c.Data(http.StatusOK, "text/html", content.Bytes())
 }
@@ -294,6 +300,7 @@ func toggleLike(c *gin.Context) {
 	if udIx == -1 {
 		user.Liked = append(user.Liked, req.DeviceID)
 		hub.Deliver <- &notifications.Event{
+			Type:      notifications.Notification,
 			Recipient: db.Devices[dIx].Owner,
 			Content:   "\"" + db.Devices[dIx].Title + "\" wurde geliked!",
 		}

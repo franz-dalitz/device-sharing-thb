@@ -14,6 +14,12 @@
 
     document.body.addEventListener('htmx:wsAfterMessage', function (event) {
         const newToast = document.getElementById("notifications").firstElementChild;
+
+        const user = new URLSearchParams(window.location.search).get('user');
+        if (newToast.innerHTML.includes(user)) {
+            return;
+        }
+
         const realToast = new bootstrap.Toast(newToast);
         realToast.show();
 
@@ -54,6 +60,5 @@
           width: 56px; height: 56px; z-index: 1031;">
   <i class="bi bi-plus fs-4" style="color: black;"></i>
 </a>
-
 
 {{ end }}

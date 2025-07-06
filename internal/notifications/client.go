@@ -3,9 +3,9 @@ package notifications
 import (
 	"bytes"
 	"context"
-	"html/template"
 	"log/slog"
 	"sync"
+	"text/template"
 	"time"
 
 	"github.com/franz-dalitz/device-sharing-thb/internal/data"
@@ -82,7 +82,13 @@ func (c *Client) write() {
 	defer ticker.Stop()
 	defer c.exit()
 
-	toast, err := template.ParseFiles("web/components/toast.tmpl")
+	toastTmpl, err := template.ParseFiles("web/components/toast.tmpl")
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+
+	messagesTmpl, err := template.ParseFiles("web/components/other-message.tmpl")
 	if err != nil {
 		slog.Error(err.Error())
 		return
@@ -107,9 +113,16 @@ func (c *Client) write() {
 				return
 			}
 			var msg bytes.Buffer
-			if err := toast.Execute(&msg, evt.Content); err != nil {
-				slog.Error(err.Error())
-				continue
+			if evt.Type == Notification {
+				if err := toastTmpl.Execute(&msg, evt.Content); err != nil {
+					slog.Error(err.Error())
+					continue
+				}
+			} else if evt.Type == Message {
+				if err := messagesTmpl.Execute(&msg, evt.Content); err != nil {
+					slog.Error(err.Error())
+					continue
+				}
 			}
 			w.Write(msg.Bytes())
 			if err := w.Close(); err != nil {
