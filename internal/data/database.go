@@ -28,8 +28,6 @@ func (db *Database) Mock() {
 
 	db.Chats = append(db.Chats,
 		NewChat(IntPair{db.Users[0].ID, db.Users[1].ID}),
-		NewChat(IntPair{db.Users[1].ID, db.Users[2].ID}),
-		NewChat(IntPair{db.Users[2].ID, db.Users[0].ID}),
 	)
 
 	db.Chats[0].Messages = append(db.Chats[0].Messages,

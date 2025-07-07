@@ -23,6 +23,7 @@ func NewDevice(owner int, title string, cat Category, desc string, loc string) *
 		Category:    cat,
 		Description: desc,
 		Location:    loc,
+		ReservedBy:  -1,
 	}
 }
 

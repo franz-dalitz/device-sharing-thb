@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bytes"
+	"fmt"
 	"log/slog"
 	"mime/multipart"
 	"net/http"
@@ -41,9 +42,10 @@ func Server() *gin.Engine {
 	})
 
 	// API
+	server.GET("/api/contact", contactUser)
+	server.PUT("/api/reserve", toggleReserve)
 	server.POST("/api/messages", sendMessage)
 	server.GET("/api/messages", loadMessages)
-	server.POST("/api/chats", createChat)
 	server.POST("/api/devices", createDevice)
 	server.PUT("/api/like", toggleLike)
 	server.GET("/ws", registerClient)
@@ -57,6 +59,83 @@ func Server() *gin.Engine {
 	go hub.Run()
 
 	return server
+}
+
+func contactUser(c *gin.Context) {
+	userID, err := strconv.Atoi(c.Query("userID"))
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	otherID, err := strconv.Atoi(c.Query("otherID"))
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	uIx := slices.IndexFunc(db.Users, func(dbUser *data.User) bool {
+		return dbUser.ID == userID
+	})
+	if uIx == -1 {
+		slog.Error("trying to access nonexistent user")
+		return
+	}
+	oIx := slices.IndexFunc(db.Users, func(dbUser *data.User) bool {
+		return dbUser.ID == otherID
+	})
+	if oIx == -1 {
+		slog.Error("trying to access nonexistent user")
+		return
+	}
+	other := db.Users[oIx]
+	pair := data.IntPair{X: userID, Y: otherID}
+	cIx := slices.IndexFunc(db.Chats, func(dbChat *data.Chat) bool {
+		return dbChat.Participants.Equals(pair)
+	})
+	var chatID int
+	if cIx == -1 {
+		newChat := data.NewChat(pair)
+		db.Chats = append(db.Chats, newChat)
+		chatID = newChat.ID
+	} else {
+		chatID = db.Chats[cIx].ID
+	}
+	c.Header("HX-Redirect", fmt.Sprintf("/chat?chat=%v&user=%v", chatID, other.Name))
+	c.Status(http.StatusOK)
+}
+
+func toggleReserve(c *gin.Context) {
+	var req struct {
+		UserID   int `form:"userID"`
+		DeviceID int `form:"deviceID"`
+	}
+	err := c.ShouldBind(&req)
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	uIx := slices.IndexFunc(db.Users, func(dbUser *data.User) bool {
+		return dbUser.ID == req.UserID
+	})
+	if uIx == -1 {
+		slog.Error("trying to access nonexistent user")
+		return
+	}
+	dIx := slices.IndexFunc(db.Devices, func(dbDevice *data.Device) bool {
+		return dbDevice.ID == req.DeviceID
+	})
+	if dIx == -1 {
+		slog.Error("trying to access nonexistent device")
+		return
+	}
+	device := db.Devices[dIx]
+	if device.ReservedBy != -1 && device.ReservedBy != req.UserID {
+		slog.Error("user trying to toggle reserve for device reserved by other user")
+		return
+	} else if device.ReservedBy == -1 {
+		device.ReservedBy = req.UserID
+	} else {
+		device.ReservedBy = -1
+	}
 }
 
 func sendMessage(c *gin.Context) {
@@ -182,21 +261,6 @@ func loadMessages(c *gin.Context) {
 	c.Data(http.StatusOK, "text/html", content.Bytes())
 }
 
-func createChat(c *gin.Context) {
-	from := 0 // TODO
-	to := 0   // TODO
-	pair := data.IntPair{X: from, Y: to}
-
-	if ix := slices.IndexFunc(db.Chats, func(chat *data.Chat) bool {
-		return chat.Participants.Equals(pair)
-	}); ix == -1 {
-		slog.Error("trying to create a chat that already exists")
-		return
-	}
-
-	db.Chats = append(db.Chats, data.NewChat(pair))
-}
-
 func getContacts(c *gin.Context) {
 	userID, err := strconv.Atoi(c.Query("userID"))
 	if err != nil {
@@ -270,33 +334,26 @@ func toggleLike(c *gin.Context) {
 		UserID   int `form:"userID"`
 		DeviceID int `form:"deviceID"`
 	}
-
 	if err := c.ShouldBind(&req); err != nil {
 		slog.Error(err.Error())
 		return
 	}
-
 	uIx := slices.IndexFunc(db.Users, func(dbUser *data.User) bool {
 		return dbUser.ID == req.UserID
 	})
-
 	if uIx == -1 {
 		slog.Error("trying to toggle like with nonexistent user")
 		return
 	}
-
 	dIx := slices.IndexFunc(db.Devices, func(dbDevice *data.Device) bool {
 		return dbDevice.ID == req.DeviceID
 	})
-
 	if dIx == -1 {
 		slog.Error("trying to toggle like for nonexistent device")
 		return
 	}
-
 	user := db.Users[uIx]
 	udIx := slices.Index(user.Liked, req.DeviceID)
-
 	if udIx == -1 {
 		user.Liked = append(user.Liked, req.DeviceID)
 		hub.Deliver <- &notifications.Event{
@@ -357,38 +414,32 @@ func search(c *gin.Context) {
 	category := c.Query("category")
 	uExcept := c.Query("uExcept")
 	uOnly := c.Query("uOnly")
-
 	userID, err := strconv.Atoi(c.Query("userID"))
 	if err != nil {
 		return
 	}
-
 	uIx := slices.IndexFunc(db.Users, func(dbUser *data.User) bool {
 		return dbUser.ID == userID
 	})
-
 	if uIx == -1 {
 		return
 	}
-
 	user := db.Users[uIx]
-
 	type SearchDevice struct {
-		Device *data.Device
-		Liked  bool
+		Device    *data.Device
+		OwnerID   int
+		OwnerName string
+		ChatID    int
+		Liked     bool
 	}
-
 	devices := []SearchDevice{}
-
 	for _, device := range db.Devices {
 		if !strings.Contains(strings.ReplaceAll(strings.ToLower(device.Title), " ", ""), strings.ToLower(search)) {
 			continue
 		}
-
 		if category != "Any" && device.Category.String() != category {
 			continue
 		}
-
 		if uExcept == "true" {
 			if device.Owner == userID {
 				continue
@@ -398,9 +449,27 @@ func search(c *gin.Context) {
 				continue
 			}
 		}
-
+		oIx := slices.IndexFunc(db.Users, func(dbUser *data.User) bool {
+			return dbUser.ID == device.Owner
+		})
+		if oIx == -1 {
+			return
+		}
+		other := db.Users[oIx]
+		cIx := slices.IndexFunc(db.Chats, func(dbChat *data.Chat) bool {
+			return dbChat.Participants.Equals(data.IntPair{X: userID, Y: other.ID})
+		})
+		var chat int
+		if cIx == -1 {
+			chat = -1
+		} else {
+			chat = db.Chats[cIx].ID
+		}
 		devices = append(devices, SearchDevice{
 			device,
+			other.ID,
+			other.Name,
+			chat,
 			slices.IndexFunc(user.Liked, func(dId int) bool {
 				return dId == device.ID
 			}) != -1,
