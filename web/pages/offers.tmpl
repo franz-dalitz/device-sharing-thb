@@ -20,7 +20,8 @@
       hx-trigger="load, keyup changed delay:200ms from:#search, change from:#category" hx-target="#device-list"
       hx-swap="innerHTML" hx-vals='js:{
               "userID": sessionStorage.getItem("userID"),
-              "uExcept": "true"
+              "uOnly": "true",
+              "offers": "true"
             }'>
 
       <!-- Search -->

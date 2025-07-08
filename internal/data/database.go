@@ -1,11 +1,9 @@
-package internal
-
-var Db Database = Database{}
+package data
 
 type Database struct {
 	Users   []*User
-	Chats   []*Chat
 	Devices []*Device
+	Chats   []*Chat
 }
 
 func (db *Database) Mock() {
@@ -26,5 +24,14 @@ func (db *Database) Mock() {
 		NewDevice(db.Users[2].ID, "Google Pixel 7", Smartphone, "Secondary work phone.", "Car Console"),
 		NewDevice(db.Users[2].ID, "Wireless Charging Pad", Charger, "Desk charger for multiple devices.", "Office Desk"),
 		NewDevice(db.Users[2].ID, "External SSD 1TB", Other, "Portable storage for backups.", "Home Office Shelf"),
+	)
+
+	db.Chats = append(db.Chats,
+		NewChat(IntPair{db.Users[0].ID, db.Users[1].ID}),
+	)
+
+	db.Chats[0].Messages = append(db.Chats[0].Messages,
+		NewMessage(db.Chats[0].Participants.X, "Hey!"),
+		NewMessage(db.Chats[0].Participants.Y, "Selber hey..."),
 	)
 }

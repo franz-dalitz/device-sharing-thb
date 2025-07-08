@@ -18,5 +18,6 @@ WORKDIR /device-sharing
 COPY --from=go-build /build/server ./server
 COPY --from=npm-install /build/node_modules ./web/node_modules
 COPY web ./web
+RUN mkdir photos
 EXPOSE 8080
 CMD ["/device-sharing/server"]

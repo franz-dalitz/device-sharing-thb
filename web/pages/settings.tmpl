@@ -35,20 +35,20 @@
             </div>
 
             <!-- Buttons -->
-            <div class="d-flex justify-content-between">
-              <button class="btn btn-danger" hx-post="/logout" hx-swap="none">
+            <div class="d-flex justify-content-between align-items-center gap-3">
+              <button class="btn btn-danger" hx-post="/logout" hx-swap="none" style="height: 40px;">
                 Logout
               </button>
 
-              <div class="mb-3" hx-get="/api/useropts/" hx-swap="innterHtml" hx-trigger="load" hx-target="#username"
+              <div hx-get="/api/useropts/" hx-swap="innterHtml" hx-trigger="load" hx-target="#username"
                 hx-vals="js:{userID: sessionStorage.getItem('userID')}">
-                <label for="username" class="form-label fw-semibold">Users</label>
-                <select id="username" name="id" class="form-select" hx-post="/api/userselect" hx-trigger="change"
-                  hx-swap="none" onchange="sessionStorage.setItem('userID', this.value)" required>
-                </select>
+                <label for="username" class="form-label fw-semibold">User</label>
+                  <select id="username" name="id" class="form-select" hx-post="/api/userselect" hx-trigger="change"
+                    hx-swap="none" onchange="sessionStorage.setItem('userID', this.value); window.location.reload();" required>
+                  </select>
               </div>
 
-              <button class="btn btn-danger" hx-post="/update-account" hx-swap="none">
+              <button class="btn btn-danger" hx-post="/update-account" hx-swap="none" style="height: 40px;" >
                 Update
               </button>
             </div>

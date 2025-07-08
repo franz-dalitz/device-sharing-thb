@@ -1,4 +1,9 @@
-package internal
+package data
+
+import (
+	"errors"
+	"slices"
+)
 
 type Category int
 
@@ -26,4 +31,12 @@ func (cat Category) String() string {
 		return "Unknown"
 	}
 	return Categories[cat]
+}
+
+func AsCategory(cat string) (Category, error) {
+	ix := slices.Index(Categories, cat) + 1
+	if ix == -1 {
+		return 0, errors.New("unknown category")
+	}
+	return Category(ix), nil
 }

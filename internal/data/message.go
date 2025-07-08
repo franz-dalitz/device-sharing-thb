@@ -1,6 +1,4 @@
-package internal
-
-import "time"
+package data
 
 var midg = IDGen{}
 
@@ -8,7 +6,6 @@ type Message struct {
 	ID      int
 	By      int
 	Content string
-	Time    time.Time
 }
 
 func NewMessage(by int, content string) *Message {
@@ -16,6 +13,5 @@ func NewMessage(by int, content string) *Message {
 		midg.Generate(),
 		by,
 		content,
-		time.Now(),
 	}
 }

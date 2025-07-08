@@ -1,4 +1,4 @@
-package internal
+package data
 
 type IDGen struct {
 	id int

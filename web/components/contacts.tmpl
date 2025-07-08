@@ -1,0 +1,12 @@
+{{ range . }}
+<div class="user-item py-3">
+    <a href="chat?chat={{ .ChatID }}&user={{ .Name }}" class="d-block text-decoration-none text-dark">
+        {{ .Name }}
+        {{ if .Online }}
+        <small class="d-block text-primary">online</small>
+        {{ else }}
+        <small class="d-block text-muted">last seen {{ .Seen }} ago</small>
+        {{ end }}
+    </a>
+</div>
+{{ end }}
