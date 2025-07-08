@@ -1,7 +1,5 @@
 package data
 
-import "mime/multipart"
-
 var didg = IDGen{}
 
 type Device struct {
@@ -11,7 +9,7 @@ type Device struct {
 	Category    Category
 	Description string
 	Location    string
-	Photo       multipart.FileHeader
+	Photo       string
 	ReservedBy  int
 }
 
@@ -27,7 +25,7 @@ func NewDevice(owner int, title string, cat Category, desc string, loc string) *
 	}
 }
 
-func (device *Device) WithPhoto(photo multipart.FileHeader) *Device {
+func (device *Device) WithPhoto(photo string) *Device {
 	device.Photo = photo
 	return device
 }

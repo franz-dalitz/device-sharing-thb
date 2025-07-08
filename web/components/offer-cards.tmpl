@@ -2,6 +2,7 @@
 {{ range . }}
 <div class="col-md-6 col-lg-4">
   <div class="card shadow-sm">
+    <img src="/static/photos/{{ .Photo }}" class="card-img-top" width="100%" alt="Image not available">
     <div class="card-body">
       <h5 class="card-title">{{ .Title }}</h5>
       <p class="card-text">{{ .Category }}</p>

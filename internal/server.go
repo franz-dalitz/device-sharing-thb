@@ -3,9 +3,11 @@ package internal
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log/slog"
-	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -15,6 +17,7 @@ import (
 	"github.com/franz-dalitz/device-sharing-thb/internal/data"
 	"github.com/franz-dalitz/device-sharing-thb/internal/notifications"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 var (
@@ -32,6 +35,7 @@ func Server() *gin.Engine {
 	server.Static("/static/bootstrap", "web/node_modules/bootstrap/dist")
 	server.Static("/static/bootstrap-icons", "web/node_modules/bootstrap-icons/font")
 	server.Static("/static/thb.svg", "web/thb.svg")
+	server.Static("/static/photos", "photos")
 
 	server.LoadHTMLGlob("web/**/*.tmpl")
 
@@ -66,13 +70,20 @@ func Server() *gin.Engine {
 
 func updateDevice(c *gin.Context) {
 	var req struct {
-		Owner       int                  `form:"userID"`
-		ID          int                  `form:"deviceID"`
-		Title       string               `form:"title"`
-		Category    string               `form:"category"`
-		Description string               `form:"description"`
-		Location    string               `form:"location"`
-		Photo       multipart.FileHeader `form:"photo"`
+		Owner       int    `form:"userID"`
+		ID          int    `form:"deviceID"`
+		Title       string `form:"title"`
+		Category    string `form:"category"`
+		Description string `form:"description"`
+		Location    string `form:"location"`
+	}
+	if err := c.ShouldBind(&req); err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	photo, header, err := c.Request.FormFile("photo")
+	if err != nil {
+		slog.Error(err.Error())
 	}
 	if err := c.ShouldBind(&req); err != nil {
 		slog.Error(err.Error())
@@ -102,11 +113,38 @@ func updateDevice(c *gin.Context) {
 		slog.Error("user is trying to update device they don't own")
 		return
 	}
+	if photo != nil {
+		defer photo.Close()
+		uu, err := uuid.NewRandom()
+		if err != nil {
+			slog.Error(err.Error())
+			return
+		}
+		filename := uu.String() + filepath.Ext(header.Filename)
+		filePath := filepath.Join("photos", filename)
+		dst, err := os.Create(filePath)
+		if err != nil {
+			slog.Error(err.Error())
+			return
+		}
+		defer dst.Close()
+		if _, err = io.Copy(dst, photo); err != nil {
+			slog.Error(err.Error())
+			return
+		}
+		if device.Photo != "" {
+			err = os.Remove("photos/" + device.Photo)
+			if err != nil {
+				slog.Error(err.Error())
+				return
+			}
+		}
+		device.Photo = filename
+	}
 	device.Title = req.Title
 	device.Category = cat
 	device.Description = req.Description
 	device.Location = req.Location
-	device.Photo = req.Photo
 	c.Header("HX-Redirect", "/offers")
 	c.Status(http.StatusOK)
 }
@@ -138,6 +176,11 @@ func deleteDevice(c *gin.Context) {
 	})
 	if dIx == -1 {
 		slog.Error("trying to delete nonexistent device")
+		return
+	}
+	err = os.Remove("photos/" + db.Devices[dIx].Photo)
+	if err != nil {
+		slog.Error(err.Error())
 		return
 	}
 	db.Devices = slices.Delete(db.Devices, dIx, dIx+1)
@@ -699,13 +742,18 @@ func selectUser(c *gin.Context) {
 
 func createDevice(c *gin.Context) {
 	var req struct {
-		Owner       int                  `form:"userID"`
-		Title       string               `form:"title"`
-		Category    string               `form:"category"`
-		Description string               `form:"description"`
-		Location    string               `form:"location"`
-		Photo       multipart.FileHeader `form:"photo"`
+		Owner       int    `form:"userID"`
+		Title       string `form:"title"`
+		Category    string `form:"category"`
+		Description string `form:"description"`
+		Location    string `form:"location"`
 	}
+	photo, header, err := c.Request.FormFile("photo")
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	defer photo.Close()
 	if err := c.ShouldBind(&req); err != nil {
 		slog.Error(err.Error())
 		return
@@ -715,6 +763,23 @@ func createDevice(c *gin.Context) {
 		slog.Error(err.Error())
 		return
 	}
-	device := data.NewDevice(req.Owner, req.Title, cat, req.Description, req.Location).WithPhoto(req.Photo)
+	uu, err := uuid.NewRandom()
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	filename := uu.String() + filepath.Ext(header.Filename)
+	filePath := filepath.Join("photos", filename)
+	dst, err := os.Create(filePath)
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	defer dst.Close()
+	if _, err = io.Copy(dst, photo); err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	device := data.NewDevice(req.Owner, req.Title, cat, req.Description, req.Location).WithPhoto(filename)
 	db.Devices = append(db.Devices, device)
 }
