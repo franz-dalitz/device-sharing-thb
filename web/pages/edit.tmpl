@@ -1,0 +1,81 @@
+{{ define "edit" }}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Edit a Device</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link>
+  <link href="/static/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/bootstrap-icons/bootstrap-icons.min.css" rel="stylesheet">
+  <script src="/static/htmx/htmx.min.js"></script>
+</head>
+
+<body class="bg-light">
+
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-md-8 col-lg-6">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h3 class="card-title mb-4 text-center">Edit a Device</h3>
+
+            <!-- HTMX Form -->
+            <form hx-put="/api/devices" hx-vals='js:{
+              "userID": sessionStorage.getItem("userID"),
+              "deviceID": new URLSearchParams(window.location.search).get("device")
+            }' hx-swap="none" hx-encoding="multipart/form-data">
+
+              <!-- Name -->
+              <div class="mb-3">
+                <label for="title" class="form-label fw-semibold">Title</label>
+                <textarea id="title" name="title" class="form-control" rows="1" required>{{ .Title }}</textarea>
+              </div>
+
+              <!-- Description -->
+              <div class="mb-3">
+                <label for="description" class="form-label fw-semibold">Description</label>
+                <textarea id="description" name="description" class="form-control" rows="3" required>{{ .Description }}</textarea>
+              </div>
+
+              <!-- Category -->
+              <div class="mb-3">
+                <label for="category" class="form-label fw-semibold">Category</label>
+                <select id="category" name="category" class="form-select" required>
+                  <option value="" disabled selected id="select" hx-get="/api/component/category-list?preselect=true" hx-trigger="load"
+                    hx-swap="afterend" hx-target="#select">Select a category</option>
+                </select>
+              </div>
+
+              <!-- Location -->
+              <div class="mb-3">
+                <label for="location" class="form-label fw-semibold">Location</label>
+                <textarea id="location" name="location" class="form-control" rows=1 required>{{ .Location }}</textarea>
+              </div>
+
+              <!-- Upload Photo -->
+              <div class="mb-3">
+                <label for="photo" class="form-label fw-semibold">Update Photo</label>
+                <input type="file" id="photo" name="photo" class="form-control" accept="image/*" capture="environment">
+              </div>
+
+              <!-- Buttons -->
+              <div class="d-flex justify-content-center">
+                <button type="submit" class="btn btn-danger">Update</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {{ template "navbar" }}
+
+  <script src="/static/htmx/htmx.min.js"></script>
+  <script src="/static/bootstrap/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
+{{ end }}

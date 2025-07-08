@@ -42,11 +42,14 @@ func Server() *gin.Engine {
 	})
 
 	// API
+	server.PUT("/api/devices", updateDevice)
+	server.GET("/edit", loadEditPage)
 	server.GET("/api/contact", contactUser)
 	server.PUT("/api/reserve", toggleReserve)
 	server.POST("/api/messages", sendMessage)
 	server.GET("/api/messages", loadMessages)
 	server.POST("/api/devices", createDevice)
+	server.DELETE("/api/devices/:id", deleteDevice)
 	server.PUT("/api/like", toggleLike)
 	server.GET("/ws", registerClient)
 	server.GET("/api/search", search)
@@ -59,6 +62,87 @@ func Server() *gin.Engine {
 	go hub.Run()
 
 	return server
+}
+
+func updateDevice(c *gin.Context) {
+	var req struct {
+		Owner       int                  `form:"userID"`
+		ID          int                  `form:"deviceID"`
+		Title       string               `form:"title"`
+		Category    string               `form:"category"`
+		Description string               `form:"description"`
+		Location    string               `form:"location"`
+		Photo       multipart.FileHeader `form:"photo"`
+	}
+	if err := c.ShouldBind(&req); err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	uIx := slices.IndexFunc(db.Users, func(dbUser *data.User) bool {
+		return dbUser.ID == req.Owner
+	})
+	if uIx == -1 {
+		slog.Error("trying to edit device with nonexistent user")
+		return
+	}
+	dIx := slices.IndexFunc(db.Devices, func(dbDevice *data.Device) bool {
+		return dbDevice.ID == req.ID
+	})
+	if dIx == -1 {
+		slog.Error("trying to update nonexistent device")
+		return
+	}
+	cat, err := data.AsCategory(req.Category)
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	device := db.Devices[dIx]
+	if req.Owner != device.Owner {
+		slog.Error("user is trying to update device they don't own")
+		return
+	}
+	device.Title = req.Title
+	device.Category = cat
+	device.Description = req.Description
+	device.Location = req.Location
+	device.Photo = req.Photo
+	c.Header("HX-Redirect", "/offers")
+	c.Status(http.StatusOK)
+}
+
+func loadEditPage(c *gin.Context) {
+	id, err := strconv.Atoi(c.Query("device"))
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	dIx := slices.IndexFunc(db.Devices, func(dbDevice *data.Device) bool {
+		return dbDevice.ID == id
+	})
+	if dIx == -1 {
+		slog.Error("trying to edit nonexistent device")
+		return
+	}
+	c.HTML(http.StatusOK, "edit", db.Devices[dIx])
+}
+
+func deleteDevice(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	dIx := slices.IndexFunc(db.Devices, func(dbDevice *data.Device) bool {
+		return dbDevice.ID == id
+	})
+	if dIx == -1 {
+		slog.Error("trying to delete nonexistent device")
+		return
+	}
+	db.Devices = slices.Delete(db.Devices, dIx, dIx+1)
+	c.Header("HX-Refresh", "true")
+	c.Status(http.StatusOK)
 }
 
 func contactUser(c *gin.Context) {
@@ -398,9 +482,42 @@ func getCategoryList(c *gin.Context) {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
+	type ListCategory struct {
+		Name     string
+		Selected bool
+	}
+	dCat := -1
+	if c.Query("preselect") == "true" {
+		dId, err := strconv.Atoi(c.Query("deviceID"))
+		if err != nil {
+			slog.Error(err.Error())
+			return
+		}
+		dIx := slices.IndexFunc(db.Devices, func(dbDevice *data.Device) bool {
+			return dbDevice.ID == dId
+		})
+		if dIx == -1 {
+			slog.Error("trying to edit nonexistent device")
+			return
+		}
+		device := db.Devices[dIx]
+		dCat = int(device.Category)
+	}
+	cats := []ListCategory{}
+	for _, cat := range data.Categories {
+		catVal, err := data.AsCategory(cat)
+		if err != nil {
+			slog.Error(err.Error())
+			return
+		}
+		cats = append(cats, ListCategory{
+			Name:     cat,
+			Selected: dCat == int(catVal),
+		})
+	}
 
 	var content bytes.Buffer
-	err = tmpl.Execute(&content, data.Categories)
+	err = tmpl.Execute(&content, cats)
 	if err != nil {
 		slog.Error(err.Error(), "err", err)
 		c.AbortWithError(http.StatusInternalServerError, err)
@@ -414,6 +531,7 @@ func search(c *gin.Context) {
 	category := c.Query("category")
 	uExcept := c.Query("uExcept")
 	uOnly := c.Query("uOnly")
+	offers := c.Query("offers")
 	userID, err := strconv.Atoi(c.Query("userID"))
 	if err != nil {
 		return
@@ -432,7 +550,7 @@ func search(c *gin.Context) {
 		ChatID    int
 		Liked     bool
 	}
-	devices := []SearchDevice{}
+	filtered := []*data.Device{}
 	for _, device := range db.Devices {
 		if !strings.Contains(strings.ReplaceAll(strings.ToLower(device.Title), " ", ""), strings.ToLower(search)) {
 			continue
@@ -449,33 +567,41 @@ func search(c *gin.Context) {
 				continue
 			}
 		}
-		oIx := slices.IndexFunc(db.Users, func(dbUser *data.User) bool {
-			return dbUser.ID == device.Owner
-		})
-		if oIx == -1 {
-			return
-		}
-		other := db.Users[oIx]
-		cIx := slices.IndexFunc(db.Chats, func(dbChat *data.Chat) bool {
-			return dbChat.Participants.Equals(data.IntPair{X: userID, Y: other.ID})
-		})
-		var chat int
-		if cIx == -1 {
-			chat = -1
-		} else {
-			chat = db.Chats[cIx].ID
-		}
-		devices = append(devices, SearchDevice{
-			device,
-			other.ID,
-			other.Name,
-			chat,
-			slices.IndexFunc(user.Liked, func(dId int) bool {
-				return dId == device.ID
-			}) != -1,
-		})
+		filtered = append(filtered, device)
 	}
-	c.HTML(http.StatusOK, "device-cards", devices)
+	if offers == "true" {
+		c.HTML(http.StatusOK, "offer-cards", filtered)
+	} else {
+		devices := []SearchDevice{}
+		for _, device := range filtered {
+			oIx := slices.IndexFunc(db.Users, func(dbUser *data.User) bool {
+				return dbUser.ID == device.Owner
+			})
+			if oIx == -1 {
+				return
+			}
+			other := db.Users[oIx]
+			cIx := slices.IndexFunc(db.Chats, func(dbChat *data.Chat) bool {
+				return dbChat.Participants.Equals(data.IntPair{X: userID, Y: other.ID})
+			})
+			var chat int
+			if cIx == -1 {
+				chat = -1
+			} else {
+				chat = db.Chats[cIx].ID
+			}
+			devices = append(devices, SearchDevice{
+				device,
+				other.ID,
+				other.Name,
+				chat,
+				slices.IndexFunc(user.Liked, func(dId int) bool {
+					return dId == device.ID
+				}) != -1,
+			})
+		}
+		c.HTML(http.StatusOK, "device-cards", devices)
+	}
 }
 
 func getUserOpts(c *gin.Context) {
@@ -580,18 +706,15 @@ func createDevice(c *gin.Context) {
 		Location    string               `form:"location"`
 		Photo       multipart.FileHeader `form:"photo"`
 	}
-
 	if err := c.ShouldBind(&req); err != nil {
 		slog.Error(err.Error())
 		return
 	}
-
 	cat, err := data.AsCategory(req.Category)
 	if err != nil {
 		slog.Error(err.Error())
 		return
 	}
-
 	device := data.NewDevice(req.Owner, req.Title, cat, req.Description, req.Location).WithPhoto(req.Photo)
 	db.Devices = append(db.Devices, device)
 }
