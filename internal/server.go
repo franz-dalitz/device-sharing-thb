@@ -68,6 +68,15 @@ func Server() *gin.Engine {
 	return server
 }
 
+// @Description update an existing device
+// @Param owner formData int true "owner id"
+// @Param ID formData int true "device id"
+// @Param Title formData string true "device title"
+// @Param Category formData string true "device category"
+// @Param Description formData string true "device description"
+// @Param Location formData string true "device location"
+// @Success 200
+// @Router /api/devices [get]
 func updateDevice(c *gin.Context) {
 	var req struct {
 		Owner       int    `form:"userID"`
@@ -260,8 +269,16 @@ func toggleReserve(c *gin.Context) {
 		return
 	} else if device.ReservedBy == -1 {
 		device.ReservedBy = req.UserID
+		hub.Deliver <- &notifications.Event{
+			Recipient: req.UserID,
+			Content:   "You reserved \"" + device.Title + "\"",
+		}
 	} else {
 		device.ReservedBy = -1
+		hub.Deliver <- &notifications.Event{
+			Recipient: req.UserID,
+			Content:   "You un-reserved \"" + device.Title + "\"",
+		}
 	}
 }
 
@@ -488,8 +505,16 @@ func toggleLike(c *gin.Context) {
 			Recipient: db.Devices[dIx].Owner,
 			Content:   "\"" + db.Devices[dIx].Title + "\" wurde geliked!",
 		}
+		hub.Deliver <- &notifications.Event{
+			Recipient: req.UserID,
+			Content:   "You liked \"" + db.Devices[dIx].Title + "\"",
+		}
 	} else {
 		user.Liked = slices.Delete(user.Liked, udIx, udIx+1)
+		hub.Deliver <- &notifications.Event{
+			Recipient: req.UserID,
+			Content:   "You un-liked \"" + db.Devices[dIx].Title + "\"",
+		}
 	}
 }
 
@@ -575,6 +600,7 @@ func search(c *gin.Context) {
 	uExcept := c.Query("uExcept")
 	uOnly := c.Query("uOnly")
 	offers := c.Query("offers")
+	searchType := c.Query("searchType")
 	userID, err := strconv.Atoi(c.Query("userID"))
 	if err != nil {
 		return
@@ -591,10 +617,21 @@ func search(c *gin.Context) {
 		OwnerID   int
 		OwnerName string
 		ChatID    int
+		Likes     int
 		Liked     bool
 	}
 	filtered := []*data.Device{}
 	for _, device := range db.Devices {
+		if searchType == "reserved" {
+			if device.ReservedBy != user.ID {
+				continue
+			}
+		} else if device.ReservedBy != -1 {
+			continue
+		}
+		if i := slices.Index(user.Liked, device.ID); i == -1 && searchType == "liked" {
+			continue
+		}
 		if !strings.Contains(strings.ReplaceAll(strings.ToLower(device.Title), " ", ""), strings.ToLower(search)) {
 			continue
 		}
@@ -633,14 +670,19 @@ func search(c *gin.Context) {
 			} else {
 				chat = db.Chats[cIx].ID
 			}
+			likes := 0
+			for _, u := range db.Users {
+				if i := slices.Index(u.Liked, device.ID); i != -1 {
+					likes++
+				}
+			}
 			devices = append(devices, SearchDevice{
 				device,
 				other.ID,
 				other.Name,
 				chat,
-				slices.IndexFunc(user.Liked, func(dId int) bool {
-					return dId == device.ID
-				}) != -1,
+				likes,
+				slices.Index(user.Liked, device.ID) != -1,
 			})
 		}
 		c.HTML(http.StatusOK, "device-cards", devices)

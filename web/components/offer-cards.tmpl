@@ -2,32 +2,29 @@
 {{ range . }}
 <div class="col-md-6 col-lg-4">
   <div class="card shadow-sm">
-    <img src="/static/photos/{{ .Photo }}" class="card-img-top" width="100%" alt="Image not available">
+    <img src="/static/photos/{{ .Photo }}" class="img-fluid" width="100%" alt="Image not available" style="max-height:15em; object-fit: cover;">
     <div class="card-body">
       <h5 class="card-title">{{ .Title }}</h5>
       <p class="card-text">{{ .Category }}</p>
 
       <div class="d-flex justify-content-between align-items-center w-100">
         <button class="btn btn-danger" type="button" data-bs-toggle="collapse"
-          data-bs-target="#collapse-{{ .ID }}" aria-expanded="false" aria-controls="collapseExample">
-          More
-        </button>
+          data-bs-target="#collapse-{{ .ID }}" aria-expanded="false" aria-controls="collapseExample" onclick="if (this.innerHTML == 'Show More') {this.innerHTML = 'Show Less'} else {this.innerHTML = 'Show More'}">Show More</button>
       </div>
 
       <!-- Collapsible Content -->
       <div class="collapse" id="collapse-{{ .ID }}">
-        <div class="card card-body">
+        <div class="card card-body mt-3">
           <h6>Description</h6>
           <p class="mb-1 text-muted">{{ .Description }}</p>
           <h6>Location</h6>
           <p class="mb-1 text-muted">{{ .Location }}</p>
-          <div class="col-lg-12 justify-content-between">
-            <button class="btn btn-outline-danger" type="button" hx-delete="/api/devices/{{ .ID }}" hx-swap="none" hx-trigger="click">
-                Delete
-            </button>
-            <a class="btn btn-outline-danger" href="/edit?device={{ .ID }}">
-                Edit
-            </a>
+          <div class="row">
+            <button class="col btn btn-outline-danger" type="button" hx-delete="/api/devices/{{ .ID }}" hx-swap="none" hx-trigger="click">Delete</button>
+
+            <button class="col btn btn-outline-danger" type="button" hx-put="/api/suspend/{{ .ID }}" hx-swap="none" hx-trigger="click">Suspend</button>
+
+            <a class="col btn btn-outline-danger" href="/edit?device={{ .ID }}">Edit</a>
         </div>
         </div>
       </div>

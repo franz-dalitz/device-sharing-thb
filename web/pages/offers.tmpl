@@ -15,9 +15,8 @@
 
   <!-- Main Content -->
   <div class="container py-4">
-
     <form onsubmit="return false;" action="" hx-get="/api/search"
-      hx-trigger="load, keyup changed delay:200ms from:#search, change from:#category" hx-target="#device-list"
+      hx-trigger="load, keyup changed delay:200ms from:#search, change from:#category change from:#searchType" hx-target="#device-list"
       hx-swap="innerHTML" hx-vals='js:{
               "userID": sessionStorage.getItem("userID"),
               "uOnly": "true",
@@ -31,11 +30,24 @@
         </div>
       </div>
 
-      <select class="form-select my-4" name="category" id="category">
-        <option id="any" hx-get="/api/component/category-list" hx-trigger="load" hx-swap="afterend" hx-target="#any">
-          Any</option>
-      </select>
+      <div class="row my-4 align-items-center">
+        <div class="col">
+          <label for="category">Category</label>
+          <select class="form-select" name="category" id="category">
+            <option id="any" hx-get="/api/component/category-list" hx-trigger="load" hx-swap="afterend"
+              hx-target="#any">
+              Any</option>
+          </select>
+        </div>
 
+        <div class="col">
+          <label for="searchType">Search Type</label>
+          <select class="form-select" name="searchType" id="searchType">
+            <option value="browse" selected>Open</option>
+            <option value="reserved">Reserved</option>
+            <option value="suspended">Suspended</option>
+          </select>
+        </div>
     </form>
 
     <!-- Device List -->

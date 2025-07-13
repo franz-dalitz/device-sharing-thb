@@ -1,0 +1,45 @@
+info:
+  contact: {}
+  license:
+    name: Apache 2.0
+  title: Swagger Example API
+  version: "1.0"
+paths:
+  /api/devices:
+    get:
+      description: update an existing device
+      parameters:
+      - description: owner id
+        in: query
+        name: owner
+        required: true
+        type: integer
+      - description: device id
+        in: query
+        name: ID
+        required: true
+        type: integer
+      - description: device title
+        in: query
+        name: Title
+        required: true
+        type: string
+      - description: device category
+        in: query
+        name: Category
+        required: true
+        type: string
+      - description: device description
+        in: query
+        name: Description
+        required: true
+        type: string
+      - description: device location
+        in: query
+        name: Location
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+swagger: "2.0"
