@@ -19,7 +19,8 @@
       hx-trigger="load, keyup changed delay:200ms from:#search, change from:#category, change from:#searchType" hx-target="#device-list"
       hx-swap="innerHTML" hx-vals='js:{
               "userID": sessionStorage.getItem("userID"),
-              "uExcept": "true"
+              "uExcept": "true",
+              "offers": "false"
             }'>
 
       <!-- Search -->
@@ -56,6 +57,17 @@
   </div>
 
   {{ template "navbar" }}
+
+<script>
+  const navLinks = document.querySelectorAll('.navbar .nav-link');
+
+  navLinks.forEach(link => {
+    link.addEventListener('click', function () {
+      navLinks.forEach(l => l.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+</script>
 
 </body>
 

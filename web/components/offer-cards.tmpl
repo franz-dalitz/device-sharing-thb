@@ -2,29 +2,42 @@
 {{ range . }}
 <div class="col-md-6 col-lg-4">
   <div class="card shadow-sm">
-    <img src="/static/photos/{{ .Photo }}" class="img-fluid" width="100%" alt="Image not available" style="max-height:15em; object-fit: cover;">
-    <div class="card-body">
-      <h5 class="card-title">{{ .Title }}</h5>
-      <p class="card-text">{{ .Category }}</p>
+    <img src="/static/photos/{{ .Device.Photo }}" class="img-fluid" width="100%" alt="Image not available" style="max-height:15em; object-fit: cover;">
+
+    <div id="undo-suspend-card-{{ .Device.ID }}" class="card-body" hidden>
+      <h5 class="card-title">{{ .Device.Title }}</h5>
+      <button id="undo-suspend-button-{{ .Device.ID }}" class="btn btn-danger" type="button" hx-put="/api/suspend/{{ .Device.ID }}" hx-swap="none" hx-on::after-request="document.getElementById('body-{{ .Device.ID }}').hidden = false; document.getElementById('undo-suspend-card-{{ .Device.ID }}').hidden = true;">Undo Suspend</button>
+    </div>
+
+    <div id="body-{{ .Device.ID }}" class="card-body">
+      <h5 class="card-title">{{ .Device.Title }}</h5>
+      <p class="card-text">{{ .Device.Category }}</p>
 
       <div class="d-flex justify-content-between align-items-center w-100">
         <button class="btn btn-danger" type="button" data-bs-toggle="collapse"
-          data-bs-target="#collapse-{{ .ID }}" aria-expanded="false" aria-controls="collapseExample" onclick="if (this.innerHTML == 'Show More') {this.innerHTML = 'Show Less'} else {this.innerHTML = 'Show More'}">Show More</button>
+          data-bs-target="#collapse-{{ .Device.ID }}" aria-expanded="false" aria-controls="collapseExample" onclick="if (this.innerHTML == 'Show More') {this.innerHTML = 'Show Less'} else {this.innerHTML = 'Show More'}">Show More</button>
       </div>
 
       <!-- Collapsible Content -->
-      <div class="collapse" id="collapse-{{ .ID }}">
+      <div class="collapse" id="collapse-{{ .Device.ID }}">
         <div class="card card-body mt-3">
           <h6>Description</h6>
-          <p class="mb-1 text-muted">{{ .Description }}</p>
+          <p class="mb-1 text-muted">{{ .Device.Description }}</p>
           <h6>Location</h6>
-          <p class="mb-1 text-muted">{{ .Location }}</p>
+          <p class="mb-1 text-muted">{{ .Device.Location }}</p>
           <div class="row">
-            <button class="col btn btn-outline-danger" type="button" hx-delete="/api/devices/{{ .ID }}" hx-swap="none" hx-trigger="click">Delete</button>
+            <button class="col btn btn-outline-danger" type="button" hx-delete="/api/devices/{{ .Device.ID }}" hx-swap="none" hx-trigger="click">Delete</button>
 
-            <button class="col btn btn-outline-danger" type="button" hx-put="/api/suspend/{{ .ID }}" hx-swap="none" hx-trigger="click">Suspend</button>
+            {{ if eq .SearchType "reserved" }}
+            <button class="col btn btn-outline-danger" type="button" hx-get="/api/contact" hx-trigger="click" hx-vals='js:{
+              "userID": sessionStorage.getItem("userID"),
+              "otherID": {{ .Device.ReservedBy }}
+            }'>Contact</button>
+            {{ else }}
+            <button class="col btn btn-outline-danger" type="button" hx-put="/api/suspend/{{ .Device.ID }}" hx-swap="none" hx-trigger="click" hx-on::after-request="document.getElementById('body-{{ .Device.ID }}').hidden = true; document.getElementById('undo-suspend-card-{{ .Device.ID }}').hidden = false;">Suspend</button>
 
-            <a class="col btn btn-outline-danger" href="/edit?device={{ .ID }}">Edit</a>
+            <a class="col btn btn-outline-danger" href="/edit?device={{ .Device.ID }}">Edit</a>
+            {{ end }}
         </div>
         </div>
       </div>

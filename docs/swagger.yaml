@@ -5,40 +5,315 @@ info:
   title: Swagger Example API
   version: "1.0"
 paths:
-  /api/devices:
+  /api/component/category-list:
     get:
-      description: update an existing device
+      description: get dropdown list options for list of all categories
       parameters:
-      - description: owner id
+      - description: whether to select the active category of a device
         in: query
-        name: owner
+        name: preselect
+        type: boolean
+      - description: the device for which to pre-select
+        in: query
+        name: deviceID
+        type: integer
+      responses:
+        "200":
+          description: OK
+  /api/components/contacts:
+    get:
+      description: get all contacts with a user
+      parameters:
+      - description: user id
+        in: query
+        name: userID
         required: true
         type: integer
-      - description: device id
+      responses:
+        "200":
+          description: OK
+  /api/contact:
+    get:
+      description: create contact with user if not present, then redirect to chat
+      parameters:
+      - description: user id
         in: query
-        name: ID
+        name: userID
+        required: true
+        type: integer
+      - description: id of a different user
+        in: query
+        name: otherID
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+  /api/devices:
+    post:
+      description: create a new device
+      parameters:
+      - description: user id
+        in: formData
+        name: userID
         required: true
         type: integer
       - description: device title
-        in: query
-        name: Title
+        in: formData
+        name: title
         required: true
         type: string
       - description: device category
-        in: query
-        name: Category
+        in: formData
+        name: category
         required: true
         type: string
       - description: device description
-        in: query
-        name: Description
+        in: formData
+        name: description
         required: true
         type: string
       - description: device location
-        in: query
-        name: Location
+        in: formData
+        name: location
         required: true
         type: string
+      - description: device photo
+        in: formData
+        name: photo
+        type: file
+      responses:
+        "200":
+          description: OK
+    put:
+      description: update an existing device
+      parameters:
+      - description: owner id
+        in: formData
+        name: userID
+        required: true
+        type: integer
+      - description: device id
+        in: formData
+        name: deviceID
+        required: true
+        type: integer
+      - description: device title
+        in: formData
+        name: title
+        required: true
+        type: string
+      - description: device category
+        in: formData
+        name: category
+        required: true
+        type: string
+      - description: device description
+        in: formData
+        name: description
+        required: true
+        type: string
+      - description: device location
+        in: formData
+        name: location
+        required: true
+        type: string
+      - description: device photo
+        in: formData
+        name: photo
+        type: file
+      responses:
+        "200":
+          description: OK
+  /api/devices/{id}:
+    delete:
+      description: delete a device
+      parameters:
+      - description: device id
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+  /api/like:
+    put:
+      description: toggle like of user for device
+      parameters:
+      - description: user id
+        in: formData
+        name: userID
+        required: true
+        type: integer
+      - description: device id
+        in: formData
+        name: deviceID
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+  /api/mail:
+    get:
+      description: get the email component of a mocked user
+      parameters:
+      - description: user id
+        in: query
+        name: userID
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+  /api/messages:
+    get:
+      description: load all messages in a chat
+      parameters:
+      - description: user id
+        in: query
+        name: userID
+        required: true
+        type: integer
+      - description: chat id
+        in: query
+        name: chatID
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+    post:
+      description: send a message in a chat
+      parameters:
+      - description: sender id
+        in: formData
+        name: userID
+        required: true
+        type: integer
+      - description: chat id
+        in: formData
+        name: chatID
+        required: true
+        type: integer
+      - description: message content
+        in: formData
+        name: message
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+  /api/reserve:
+    put:
+      description: toggle reservation for a device
+      parameters:
+      - description: user id
+        in: formData
+        name: userID
+        required: true
+        type: integer
+      - description: device id
+        in: formData
+        name: deviceID
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+  /api/search:
+    get:
+      description: return device cards for specific search query
+      parameters:
+      - description: id of searching user
+        in: query
+        name: userID
+        required: true
+        type: integer
+      - description: search string
+        in: query
+        name: search
+        type: string
+      - description: device category
+        in: query
+        name: category
+        type: string
+      - description: whether to only return devices OTHER than the user
+        in: query
+        name: uExcept
+        type: boolean
+      - description: whether to only return devices BY that user
+        in: query
+        name: uOnly
+        type: boolean
+      - description: whether the user is trying to look at offers, rather than devices
+        in: query
+        name: offers
+        type: boolean
+      - description: what kind of query we're making (browse, liked, reserved, suspended)
+        in: query
+        name: searchType
+        type: string
+      responses:
+        "200":
+          description: OK
+  /api/suspend/{id}:
+    put:
+      description: toggle suspension for a device
+      parameters:
+      - description: device id
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+  /api/useropts:
+    get:
+      description: get a list of the selectable mocked users
+      parameters:
+      - description: '...'
+        in: query
+        name: userID
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+  /api/userselect:
+    post:
+      description: select a new mocked user
+      parameters:
+      - description: user id
+        in: formData
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+  /edit:
+    get:
+      description: load the edit page for a specific device
+      parameters:
+      - description: device id
+        in: query
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+  /ws:
+    get:
+      description: establish a notification client websocket connection
+      parameters:
+      - description: user id
+        in: query
+        name: userID
+        required: true
+        type: integer
       responses:
         "200":
           description: OK

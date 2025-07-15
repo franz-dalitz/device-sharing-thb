@@ -18,49 +18,472 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/devices": {
+        "/api/component/category-list": {
             "get": {
+                "description": "get dropdown list options for list of all categories",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "whether to select the active category of a device",
+                        "name": "preselect",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "the device for which to pre-select",
+                        "name": "deviceID",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/components/contacts": {
+            "get": {
+                "description": "get all contacts with a user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "user id",
+                        "name": "userID",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/contact": {
+            "get": {
+                "description": "create contact with user if not present, then redirect to chat",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "user id",
+                        "name": "userID",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "id of a different user",
+                        "name": "otherID",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/devices": {
+            "put": {
                 "description": "update an existing device",
                 "parameters": [
                     {
                         "type": "integer",
                         "description": "owner id",
-                        "name": "owner",
-                        "in": "query",
+                        "name": "userID",
+                        "in": "formData",
                         "required": true
                     },
                     {
                         "type": "integer",
                         "description": "device id",
-                        "name": "ID",
-                        "in": "query",
+                        "name": "deviceID",
+                        "in": "formData",
                         "required": true
                     },
                     {
                         "type": "string",
                         "description": "device title",
-                        "name": "Title",
-                        "in": "query",
+                        "name": "title",
+                        "in": "formData",
                         "required": true
                     },
                     {
                         "type": "string",
                         "description": "device category",
-                        "name": "Category",
-                        "in": "query",
+                        "name": "category",
+                        "in": "formData",
                         "required": true
                     },
                     {
                         "type": "string",
                         "description": "device description",
-                        "name": "Description",
-                        "in": "query",
+                        "name": "description",
+                        "in": "formData",
                         "required": true
                     },
                     {
                         "type": "string",
                         "description": "device location",
-                        "name": "Location",
+                        "name": "location",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "device photo",
+                        "name": "photo",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            },
+            "post": {
+                "description": "create a new device",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "user id",
+                        "name": "userID",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "device title",
+                        "name": "title",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "device category",
+                        "name": "category",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "device description",
+                        "name": "description",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "device location",
+                        "name": "location",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "device photo",
+                        "name": "photo",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/devices/{id}": {
+            "delete": {
+                "description": "delete a device",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "device id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/like": {
+            "put": {
+                "description": "toggle like of user for device",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "user id",
+                        "name": "userID",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "device id",
+                        "name": "deviceID",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/mail": {
+            "get": {
+                "description": "get the email component of a mocked user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "user id",
+                        "name": "userID",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/messages": {
+            "get": {
+                "description": "load all messages in a chat",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "user id",
+                        "name": "userID",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "chat id",
+                        "name": "chatID",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            },
+            "post": {
+                "description": "send a message in a chat",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "sender id",
+                        "name": "userID",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "chat id",
+                        "name": "chatID",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "message content",
+                        "name": "message",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/reserve": {
+            "put": {
+                "description": "toggle reservation for a device",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "user id",
+                        "name": "userID",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "device id",
+                        "name": "deviceID",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/search": {
+            "get": {
+                "description": "return device cards for specific search query",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "id of searching user",
+                        "name": "userID",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "search string",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "device category",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "whether to only return devices OTHER than the user",
+                        "name": "uExcept",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "whether to only return devices BY that user",
+                        "name": "uOnly",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "whether the user is trying to look at offers, rather than devices",
+                        "name": "offers",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "what kind of query we're making (browse, liked, reserved, suspended)",
+                        "name": "searchType",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/suspend/{id}": {
+            "put": {
+                "description": "toggle suspension for a device",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "device id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/useropts": {
+            "get": {
+                "description": "get a list of the selectable mocked users",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "...",
+                        "name": "userID",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/userselect": {
+            "post": {
+                "description": "select a new mocked user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "user id",
+                        "name": "id",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/edit": {
+            "get": {
+                "description": "load the edit page for a specific device",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "device id",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/ws": {
+            "get": {
+                "description": "establish a notification client websocket connection",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "user id",
+                        "name": "userID",
                         "in": "query",
                         "required": true
                     }

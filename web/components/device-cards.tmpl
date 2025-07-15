@@ -9,7 +9,7 @@
       <button id="undo-like-button-{{ .Device.ID }}" class="btn btn-danger" type="button" hx-put="/api/like" hx-vals='js:{
             "userID": sessionStorage.getItem("userID"),
             "deviceID": {{ .Device.ID }}
-          }' hx-swap="none" hx-on::after-request="document.getElementById('body-{{ .Device.ID }}').hidden = false; document.getElementById('undo-like-card-{{ .Device.ID }}').hidden = true;">Undo like</button>
+          }' hx-swap="none" hx-on::after-request="document.getElementById('body-{{ .Device.ID }}').hidden = false; document.getElementById('undo-like-card-{{ .Device.ID }}').hidden = true;">Undo {{ if eq .SearchType "liked" }}Un-{{ end }}Like</button>
     </div>
 
     <div id="undo-reserve-card-{{ .Device.ID }}" class="card-body" hidden>
@@ -17,7 +17,7 @@
       <button id="undo-reserve-button-{{ .Device.ID }}" class="btn btn-danger" type="button" hx-put="/api/reserve" hx-swap="none" hx-vals='js:{
             "userID": sessionStorage.getItem("userID"),
             "deviceID": {{ .Device.ID }}
-          }' hx-on::after-request="document.getElementById('body-{{ .Device.ID }}').hidden = false; document.getElementById('undo-reserve-card-{{ .Device.ID }}').hidden = true;">Undo reservation</button>
+          }' hx-on::after-request="document.getElementById('body-{{ .Device.ID }}').hidden = false; document.getElementById('undo-reserve-card-{{ .Device.ID }}').hidden = true;">Undo {{ if eq .SearchType "reserved" }}Un-{{ end }}Reserve</button>
     </div>
 
     <div id="body-{{ .Device.ID }}" class="card-body">
@@ -60,7 +60,7 @@
             <button class="col btn btn-outline-danger" type="button" hx-put="/api/reserve" hx-swap="none" hx-vals='js:{
               "userID": sessionStorage.getItem("userID"),
               "deviceID": {{ .Device.ID }}
-            }' hx-on::after-request="document.getElementById('body-{{ .Device.ID }}').hidden = true; document.getElementById('undo-reserve-card-{{ .Device.ID }}').hidden = false;">Reserve</button>
+            }' hx-on::after-request="document.getElementById('body-{{ .Device.ID }}').hidden = true; document.getElementById('undo-reserve-card-{{ .Device.ID }}').hidden = false;">{{ if eq .SearchType "reserved" }}Un-{{ end }}Reserve</button>
           </div>
         </div>
       </div>

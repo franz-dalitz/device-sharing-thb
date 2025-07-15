@@ -11,6 +11,7 @@ type Device struct {
 	Location    string
 	Photo       string
 	ReservedBy  int
+	Suspended   bool
 }
 
 func NewDevice(owner int, title string, cat Category, desc string, loc string) *Device {
