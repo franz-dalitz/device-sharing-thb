@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"text/template"
@@ -46,6 +47,7 @@ func Server() *gin.Engine {
 	})
 
 	// API
+	server.PUT("/api/suspend/:id", toggleSuspend)
 	server.PUT("/api/devices", updateDevice)
 	server.GET("/edit", loadEditPage)
 	server.GET("/api/contact", contactUser)
@@ -68,6 +70,49 @@ func Server() *gin.Engine {
 	return server
 }
 
+// @Description toggle suspension for a device
+// @Param id path int true "device id"
+// @Success 200
+// @Router /api/suspend/{id} [put]
+func toggleSuspend(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		slog.Error(err.Error())
+		return
+	}
+	ix := slices.IndexFunc(db.Devices, func(dbDevice *data.Device) bool {
+		return dbDevice.ID == id
+	})
+	if ix == -1 {
+		slog.Error("trying to toggle suspend on nonexistent device")
+		return
+	}
+	device := db.Devices[ix]
+	if device.Suspended {
+		device.Suspended = false
+		hub.Deliver <- &notifications.Event{
+			Recipient: device.Owner,
+			Content:   "You un-suspended \"" + device.Title + "\"",
+		}
+	} else {
+		device.Suspended = true
+		hub.Deliver <- &notifications.Event{
+			Recipient: device.Owner,
+			Content:   "You suspended \"" + device.Title + "\"",
+		}
+	}
+}
+
+// @Description update an existing device
+// @Param userID formData int true "owner id"
+// @Param deviceID formData int true "device id"
+// @Param title formData string true "device title"
+// @Param category formData string true "device category"
+// @Param description formData string true "device description"
+// @Param location formData string true "device location"
+// @Param photo formData file false "device photo"
+// @Success 200
+// @Router /api/devices [put]
 func updateDevice(c *gin.Context) {
 	var req struct {
 		Owner       int    `form:"userID"`
@@ -149,6 +194,10 @@ func updateDevice(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
+// @Description load the edit page for a specific device
+// @Param id query int true "device id"
+// @Success 200
+// @Router /edit [get]
 func loadEditPage(c *gin.Context) {
 	id, err := strconv.Atoi(c.Query("device"))
 	if err != nil {
@@ -165,6 +214,10 @@ func loadEditPage(c *gin.Context) {
 	c.HTML(http.StatusOK, "edit", db.Devices[dIx])
 }
 
+// @Description delete a device
+// @Param id path int true "device id"
+// @Success 200
+// @Router /api/devices/{id} [delete]
 func deleteDevice(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -188,6 +241,11 @@ func deleteDevice(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
+// @Description create contact with user if not present, then redirect to chat
+// @Param userID query int true "user id"
+// @Param otherID query int true "id of a different user"
+// @Success 200
+// @Router /api/contact [get]
 func contactUser(c *gin.Context) {
 	userID, err := strconv.Atoi(c.Query("userID"))
 	if err != nil {
@@ -197,6 +255,10 @@ func contactUser(c *gin.Context) {
 	otherID, err := strconv.Atoi(c.Query("otherID"))
 	if err != nil {
 		slog.Error(err.Error())
+		return
+	}
+	if userID == otherID {
+		slog.Error("can't create chat between user and themselves")
 		return
 	}
 	uIx := slices.IndexFunc(db.Users, func(dbUser *data.User) bool {
@@ -230,6 +292,11 @@ func contactUser(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
+// @Description toggle reservation for a device
+// @Param userID formData int true "user id"
+// @Param deviceID formData int true "device id"
+// @Success 200
+// @Router /api/reserve [put]
 func toggleReserve(c *gin.Context) {
 	var req struct {
 		UserID   int `form:"userID"`
@@ -260,11 +327,25 @@ func toggleReserve(c *gin.Context) {
 		return
 	} else if device.ReservedBy == -1 {
 		device.ReservedBy = req.UserID
+		hub.Deliver <- &notifications.Event{
+			Recipient: req.UserID,
+			Content:   "You reserved \"" + device.Title + "\"",
+		}
 	} else {
 		device.ReservedBy = -1
+		hub.Deliver <- &notifications.Event{
+			Recipient: req.UserID,
+			Content:   "You un-reserved \"" + device.Title + "\"",
+		}
 	}
 }
 
+// @Description send a message in a chat
+// @Param userID formData int true "sender id"
+// @Param chatID formData int true "chat id"
+// @Param message formData string true "message content"
+// @Success 200
+// @Router /api/messages [post]
 func sendMessage(c *gin.Context) {
 	var req struct {
 		UserID  int    `form:"userID"`
@@ -334,6 +415,11 @@ func sendMessage(c *gin.Context) {
 	c.Data(http.StatusOK, "text/html", content.Bytes())
 }
 
+// @Description load all messages in a chat
+// @Param userID query int true "user id"
+// @Param chatID query int true "chat id"
+// @Success 200
+// @Router /api/messages [get]
 func loadMessages(c *gin.Context) {
 	userID, err := strconv.Atoi(c.Query("userID"))
 	if err != nil {
@@ -388,6 +474,10 @@ func loadMessages(c *gin.Context) {
 	c.Data(http.StatusOK, "text/html", content.Bytes())
 }
 
+// @Description get all contacts with a user
+// @Param userID query int true "user id"
+// @Success 200
+// @Router /api/components/contacts [get]
 func getContacts(c *gin.Context) {
 	userID, err := strconv.Atoi(c.Query("userID"))
 	if err != nil {
@@ -456,6 +546,11 @@ func getContacts(c *gin.Context) {
 	c.Data(http.StatusOK, "text/html", content.Bytes())
 }
 
+// @Description toggle like of user for device
+// @Param userID formData int true "user id"
+// @Param deviceID formData int true "device id"
+// @Success 200
+// @Router /api/like [put]
 func toggleLike(c *gin.Context) {
 	var req struct {
 		UserID   int `form:"userID"`
@@ -488,11 +583,23 @@ func toggleLike(c *gin.Context) {
 			Recipient: db.Devices[dIx].Owner,
 			Content:   "\"" + db.Devices[dIx].Title + "\" wurde geliked!",
 		}
+		hub.Deliver <- &notifications.Event{
+			Recipient: req.UserID,
+			Content:   "You liked \"" + db.Devices[dIx].Title + "\"",
+		}
 	} else {
 		user.Liked = slices.Delete(user.Liked, udIx, udIx+1)
+		hub.Deliver <- &notifications.Event{
+			Recipient: req.UserID,
+			Content:   "You un-liked \"" + db.Devices[dIx].Title + "\"",
+		}
 	}
 }
 
+// @Description establish a notification client websocket connection
+// @Param userID query int true "user id"
+// @Success 200
+// @Router /ws [get]
 func registerClient(c *gin.Context) {
 	uid, err := strconv.Atoi(c.Query("userID"))
 	if err != nil {
@@ -518,6 +625,11 @@ func registerClient(c *gin.Context) {
 	client.Run()
 }
 
+// @Description get dropdown list options for list of all categories
+// @Param preselect query bool false "whether to select the active category of a device"
+// @Param deviceID query int false "the device for which to pre-select"
+// @Success 200
+// @Router /api/component/category-list [get]
 func getCategoryList(c *gin.Context) {
 	tmpl, err := template.ParseFiles("web/components/category-list.tmpl")
 	if err != nil {
@@ -569,12 +681,23 @@ func getCategoryList(c *gin.Context) {
 	c.Data(http.StatusOK, "text/html", content.Bytes())
 }
 
+// @Description return device cards for specific search query
+// @Param userID query int true "id of searching user"
+// @Param category query string true "device category"
+// @Param search query string false "search string"
+// @Param uExcept query bool false "whether to only return devices OTHER than the user"
+// @Param uOnly query bool false "whether to only return devices BY that user"
+// @Param offers query bool false "whether the user is trying to look at offers, rather than devices"
+// @Param searchType query string false "what kind of query we're making (browse, liked, reserved, suspended)"
+// @Success 200
+// @Router /api/search [get]
 func search(c *gin.Context) {
 	search := c.Query("search")
 	category := c.Query("category")
 	uExcept := c.Query("uExcept")
 	uOnly := c.Query("uOnly")
 	offers := c.Query("offers")
+	searchType := c.Query("searchType")
 	userID, err := strconv.Atoi(c.Query("userID"))
 	if err != nil {
 		return
@@ -586,15 +709,29 @@ func search(c *gin.Context) {
 		return
 	}
 	user := db.Users[uIx]
-	type SearchDevice struct {
-		Device    *data.Device
-		OwnerID   int
-		OwnerName string
-		ChatID    int
-		Liked     bool
-	}
 	filtered := []*data.Device{}
 	for _, device := range db.Devices {
+		if searchType == "suspended" {
+			if !device.Suspended {
+				continue
+			}
+		} else if device.Suspended {
+			continue
+		}
+		if searchType == "reserved" {
+			if device.ReservedBy != user.ID && offers == "false" || device.ReservedBy == -1 && offers == "true" {
+				continue
+			}
+		} else if device.ReservedBy != -1 {
+			continue
+		}
+		if searchType == "liked" {
+			if i := slices.Index(user.Liked, device.ID); i == -1 {
+				continue
+			}
+		} else if i := slices.Index(user.Liked, device.ID); i != -1 {
+			continue
+		}
 		if !strings.Contains(strings.ReplaceAll(strings.ToLower(device.Title), " ", ""), strings.ToLower(search)) {
 			continue
 		}
@@ -612,8 +749,28 @@ func search(c *gin.Context) {
 		}
 		filtered = append(filtered, device)
 	}
+	type OfferDevice struct {
+		Device     *data.Device
+		SearchType string
+	}
+	type SearchDevice struct {
+		Device     *data.Device
+		OwnerID    int
+		OwnerName  string
+		ChatID     int
+		Likes      int
+		Liked      bool
+		SearchType string
+	}
 	if offers == "true" {
-		c.HTML(http.StatusOK, "offer-cards", filtered)
+		devices := []OfferDevice{}
+		for _, device := range filtered {
+			devices = append(devices, OfferDevice{
+				device,
+				searchType,
+			})
+		}
+		c.HTML(http.StatusOK, "offer-cards", devices)
 	} else {
 		devices := []SearchDevice{}
 		for _, device := range filtered {
@@ -633,20 +790,33 @@ func search(c *gin.Context) {
 			} else {
 				chat = db.Chats[cIx].ID
 			}
+			likes := 0
+			for _, u := range db.Users {
+				if i := slices.Index(u.Liked, device.ID); i != -1 {
+					likes++
+				}
+			}
 			devices = append(devices, SearchDevice{
 				device,
 				other.ID,
 				other.Name,
 				chat,
-				slices.IndexFunc(user.Liked, func(dId int) bool {
-					return dId == device.ID
-				}) != -1,
+				likes,
+				slices.Index(user.Liked, device.ID) != -1,
+				searchType,
 			})
 		}
+		sort.Slice(devices, func(i, j int) bool {
+			return devices[i].Likes > devices[j].Likes
+		})
 		c.HTML(http.StatusOK, "device-cards", devices)
 	}
 }
 
+// @Description get a list of the selectable mocked users
+// @Param userID query int true "..."
+// @Success 200
+// @Router /api/useropts [get]
 func getUserOpts(c *gin.Context) {
 	id, err := strconv.Atoi(c.Query("userID"))
 	if err != nil {
@@ -675,6 +845,10 @@ func getUserOpts(c *gin.Context) {
 	c.Data(http.StatusOK, "text/html", content.Bytes())
 }
 
+// @Description get the email component of a mocked user
+// @Param userID query int true "user id"
+// @Success 200
+// @Router /api/mail [get]
 func loadMail(c *gin.Context) {
 	id, err := strconv.Atoi(c.Query("userID"))
 	if err != nil {
@@ -709,6 +883,10 @@ func loadMail(c *gin.Context) {
 	c.Data(http.StatusOK, "text/html", content.Bytes())
 }
 
+// @Description select a new mocked user
+// @Param id formData int true "user id"
+// @Success 200
+// @Router /api/userselect [post]
 func selectUser(c *gin.Context) {
 	id, err := strconv.Atoi(c.PostForm("id"))
 	if err != nil {
@@ -722,14 +900,12 @@ func selectUser(c *gin.Context) {
 		return
 	}
 	user := db.Users[ix]
-
 	tmpl, err := template.ParseFiles("web/components/mail.tmpl")
 	if err != nil {
 		slog.Error(err.Error(), "err", err)
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-
 	var content bytes.Buffer
 	err = tmpl.Execute(&content, user)
 	if err != nil {
@@ -740,6 +916,15 @@ func selectUser(c *gin.Context) {
 	c.Data(http.StatusOK, "text/html", content.Bytes())
 }
 
+// @Description create a new device
+// @Param userID formData int true "user id"
+// @Param title formData string true "device title"
+// @Param category formData string true "device category"
+// @Param description formData string true "device description"
+// @Param location formData string true "device location"
+// @Param photo formData file false "device photo"
+// @Success 200
+// @Router /api/devices [post]
 func createDevice(c *gin.Context) {
 	var req struct {
 		Owner       int    `form:"userID"`

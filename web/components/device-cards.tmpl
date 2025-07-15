@@ -1,34 +1,46 @@
 {{ define "device-cards" }}
 {{ range . }}
-<div class="col-md-6 col-lg-4">
+<div id="card-{{ .Device.ID }}" class="col-md-6 col-lg-4">
   <div class="card shadow-sm">
-    <img src="/static/photos/{{ .Device.Photo }}" class="card-img-top" width="100%" alt="Image not available">
-    <div class="card-body">
+    <img src="/static/photos/{{ .Device.Photo }}" class="img-fluid" alt="Image not available" style="max-height:15em; object-fit: cover;">
+
+    <div id="undo-like-card-{{ .Device.ID }}" class="card-body" hidden>
+      <h5 class="card-title">{{ .Device.Title }}</h5>
+      <button id="undo-like-button-{{ .Device.ID }}" class="btn btn-danger" type="button" hx-put="/api/like" hx-vals='js:{
+            "userID": sessionStorage.getItem("userID"),
+            "deviceID": {{ .Device.ID }}
+          }' hx-swap="none" hx-on::after-request="document.getElementById('body-{{ .Device.ID }}').hidden = false; document.getElementById('undo-like-card-{{ .Device.ID }}').hidden = true;">Undo {{ if eq .SearchType "liked" }}Un-{{ end }}Like</button>
+    </div>
+
+    <div id="undo-reserve-card-{{ .Device.ID }}" class="card-body" hidden>
+      <h5 class="card-title">{{ .Device.Title }}</h5>
+      <button id="undo-reserve-button-{{ .Device.ID }}" class="btn btn-danger" type="button" hx-put="/api/reserve" hx-swap="none" hx-vals='js:{
+            "userID": sessionStorage.getItem("userID"),
+            "deviceID": {{ .Device.ID }}
+          }' hx-on::after-request="document.getElementById('body-{{ .Device.ID }}').hidden = false; document.getElementById('undo-reserve-card-{{ .Device.ID }}').hidden = true;">Undo {{ if eq .SearchType "reserved" }}Un-{{ end }}Reserve</button>
+    </div>
+
+    <div id="body-{{ .Device.ID }}" class="card-body">
       <h5 class="card-title">{{ .Device.Title }}</h5>
       <p class="card-text">{{ .Device.Category }}</p>
 
       <div class="d-flex justify-content-between align-items-center w-100">
         <button class="btn btn-danger" type="button" data-bs-toggle="collapse"
-          data-bs-target="#collapse-{{ .Device.ID }}" aria-expanded="false" aria-controls="collapseExample">
-          Details
-        </button>
-        <a class="icon-link" href="#" hx-put="/api/like" hx-vals='js:{
-            "userID": sessionStorage.getItem("userID"),
-            "deviceID": {{ .Device.ID }}
-          }' hx-swap="none">
-          <i id="heart-{{ .Device.ID }}" class="bi {{ if .Liked }} bi-heart-fill {{ else }} bi-heart {{ end }}fs-4"
-            style="color: red;"></i>
-        </a>
-        <script>
-          document.getElementById('heart-{{ .Device.ID }}').addEventListener('click', function () {
-            this.classList.toggle('bi-heart');
-            this.classList.toggle('bi-heart-fill');
-          });
-        </script>
+          data-bs-target="#collapse-{{ .Device.ID }}" aria-expanded="false" aria-controls="collapseExample" onclick="if (this.innerHTML == 'Show More') {this.innerHTML = 'Show Less'} else {this.innerHTML = 'Show More'}">Show More</button>
+        <div class="d-flex align-items-center">
+          <a class="icon-link" href="#" hx-put="/api/like" hx-vals='js:{
+              "userID": sessionStorage.getItem("userID"),
+              "deviceID": {{ .Device.ID }}
+            }' hx-swap="none" hx-on::after-request="document.getElementById('body-{{ .Device.ID }}').hidden = true; document.getElementById('undo-like-card-{{ .Device.ID }}').hidden = false;">
+            <i id="heart-{{ .Device.ID }}" class="bi {{ if .Liked }} bi-heart-fill {{ else }} bi-heart {{ end }} fs-4"
+              style="color: red;"></i>
+          </a>
+          <span class="m-2">{{ .Likes }}</span>
+        </div>
       </div>
 
       <!-- Collapsible Content -->
-      <div class="collapse" id="collapse-{{ .Device.ID }}">
+      <div class="collapse mt-3" id="collapse-{{ .Device.ID }}">
         <div class="card card-body">
           <p class="fs-6 mb-1 text-decoration-underline">Description</p>
           <p class="mb-1 text-muted">{{ .Device.Description }}</p>
@@ -38,18 +50,18 @@
           
           <p class="fs-6 mb-1 text-decoration-underline">Owner</p>
           <p class="mb-1 text-muted">{{ .OwnerName }}</p>
-          <button class="btn btn-outline-danger" type="button" hx-put="/api/reserve" hx-swap="none" hx-vals='js:{
-            "userID": sessionStorage.getItem("userID"),
-            "deviceID": {{ .Device.ID }}
-          }'>
-            Reservieren
-          </button>
-          <button class="btn btn-outline-danger" type="button" hx-get="/api/contact" hx-trigger="click" hx-vals='js:{
-            "userID": sessionStorage.getItem("userID"),
-            "otherID": {{ .OwnerID }}
-          }'>
-            Besitzer Kontaktieren
-          </button>
+
+        <div class="row">
+            <button class="col btn btn-outline-danger" type="button" hx-get="/api/contact" hx-trigger="click" hx-vals='js:{
+              "userID": sessionStorage.getItem("userID"),
+              "otherID": {{ .OwnerID }}
+            }'>Contact</button>
+
+            <button class="col btn btn-outline-danger" type="button" hx-put="/api/reserve" hx-swap="none" hx-vals='js:{
+              "userID": sessionStorage.getItem("userID"),
+              "deviceID": {{ .Device.ID }}
+            }' hx-on::after-request="document.getElementById('body-{{ .Device.ID }}').hidden = true; document.getElementById('undo-reserve-card-{{ .Device.ID }}').hidden = false;">{{ if eq .SearchType "reserved" }}Un-{{ end }}Reserve</button>
+          </div>
         </div>
       </div>
     </div>

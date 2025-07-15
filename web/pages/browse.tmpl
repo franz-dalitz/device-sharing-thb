@@ -15,12 +15,12 @@
 
   <!-- Main Content -->
   <div class="container py-4">
-
     <form onsubmit="return false;" action="" hx-get="/api/search"
-      hx-trigger="load, keyup changed delay:200ms from:#search, change from:#category" hx-target="#device-list"
+      hx-trigger="load, keyup changed delay:200ms from:#search, change from:#category, change from:#searchType" hx-target="#device-list"
       hx-swap="innerHTML" hx-vals='js:{
               "userID": sessionStorage.getItem("userID"),
-              "uExcept": "true"
+              "uExcept": "true",
+              "offers": "false"
             }'>
 
       <!-- Search -->
@@ -30,10 +30,25 @@
         </div>
       </div>
 
-      <select class="form-select my-4" name="category" id="category">
-        <option id="any" hx-get="/api/component/category-list" hx-trigger="load" hx-swap="afterend" hx-target="#any">
-          Any</option>
-      </select>
+      <div class="row my-4 align-items-center">
+        <div class="col">
+          <label for="category">Category</label>
+          <select class="form-select" name="category" id="category">
+            <option id="any" hx-get="/api/component/category-list" hx-trigger="load" hx-swap="afterend"
+              hx-target="#any">
+              Any</option>
+          </select>
+        </div>
+
+        <div class="col">
+          <label for="searchType">Search Type</label>
+          <select class="form-select" name="searchType" id="searchType">
+            <option value="browse" selected>Browse</option>
+            <option value="liked">Liked</option>
+            <option value="reserved">Reserved</option>
+          </select>
+        </div>
+      </div>
 
     </form>
 
@@ -42,6 +57,17 @@
   </div>
 
   {{ template "navbar" }}
+
+<script>
+  const navLinks = document.querySelectorAll('.navbar .nav-link');
+
+  navLinks.forEach(link => {
+    link.addEventListener('click', function () {
+      navLinks.forEach(l => l.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+</script>
 
 </body>
 
