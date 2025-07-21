@@ -331,6 +331,10 @@ func toggleReserve(c *gin.Context) {
 			Recipient: req.UserID,
 			Content:   "You reserved \"" + device.Title + "\"",
 		}
+		hub.Deliver <- &notifications.Event{
+			Recipient: device.Owner,
+			Content:   "Someone reserved \"" + device.Title + "\"",
+		}
 	} else {
 		device.ReservedBy = -1
 		hub.Deliver <- &notifications.Event{
