@@ -31,7 +31,6 @@ type Chat struct {
 	ID           int
 	Participants IntPair
 	Messages     []*Message
-	UpToDate     map[int]bool
 }
 
 func NewChat(ip IntPair) *Chat {
@@ -39,9 +38,5 @@ func NewChat(ip IntPair) *Chat {
 		cidg.Generate(),
 		ip,
 		[]*Message{},
-		map[int]bool{
-			ip.X: true,
-			ip.Y: true,
-		},
 	}
 }
