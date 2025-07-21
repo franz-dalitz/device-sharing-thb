@@ -26,10 +26,14 @@ func (db *Database) Mock() {
 		NewDevice(db.Users[2].ID, "External SSD 1TB", Other, "Portable storage for backups.", "Home Office Shelf").WithPhoto("externalssd.jpg"),
 	)
 
+	db.MockChats()
+}
+
+func (db *Database) MockChats() {
+	db.Chats = []*Chat{}
 	db.Chats = append(db.Chats,
 		NewChat(IntPair{db.Users[0].ID, db.Users[1].ID}),
 	)
-
 	db.Chats[0].Messages = append(db.Chats[0].Messages,
 		NewMessage(db.Chats[0].Participants.X, "Hey!"),
 		NewMessage(db.Chats[0].Participants.Y, "Selber hey..."),

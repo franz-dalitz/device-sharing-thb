@@ -47,6 +47,7 @@ func Server() *gin.Engine {
 	})
 
 	// API
+	server.POST("/api/reset-chats", resetChats)
 	server.PUT("/api/suspend/:id", toggleSuspend)
 	server.PUT("/api/devices", updateDevice)
 	server.GET("/edit", loadEditPage)
@@ -68,6 +69,11 @@ func Server() *gin.Engine {
 	go hub.Run()
 
 	return server
+}
+
+func resetChats(c *gin.Context) {
+	db.MockChats()
+	slog.Info("reset chats")
 }
 
 // @Description toggle suspension for a device
