@@ -967,4 +967,8 @@ func createDevice(c *gin.Context) {
 	}
 	device := data.NewDevice(req.Owner, req.Title, cat, req.Description, req.Location).WithPhoto(filename)
 	db.Devices = append(db.Devices, device)
+	hub.Deliver <- &notifications.Event{
+		Recipient: device.Owner,
+		Content:   "Created offer \"" + device.Title + "\"",
+	}
 }
