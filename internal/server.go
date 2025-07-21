@@ -732,14 +732,14 @@ func search(c *gin.Context) {
 			if device.ReservedBy != user.ID && offers == "false" || device.ReservedBy == -1 && offers == "true" {
 				continue
 			}
-		} else if device.ReservedBy != -1 {
+		} else if device.ReservedBy != -1 && searchType != "liked" {
 			continue
 		}
 		if searchType == "liked" {
 			if i := slices.Index(user.Liked, device.ID); i == -1 {
 				continue
 			}
-		} else if i := slices.Index(user.Liked, device.ID); i != -1 {
+		} else if i := slices.Index(user.Liked, device.ID); i != -1 && searchType != "reserved" {
 			continue
 		}
 		if !strings.Contains(strings.ReplaceAll(strings.ToLower(device.Title), " ", ""), strings.ToLower(search)) {
